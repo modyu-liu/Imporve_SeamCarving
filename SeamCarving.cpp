@@ -7,7 +7,10 @@
 SeamCarving::SeamCarving(Mat &img , Mat &mask) {
     this->img = img;
     this->mask = mask;
-    get_long_boundary();
+    while(!add_seam());
+    imshow("img" , img);
+    waitKey(0);
+
 }
 
 void SeamCarving::get_long_boundary() {
@@ -118,32 +121,115 @@ void SeamCarving::get_long_boundary() {
 //g -> add_edge( 0, 1,    /* capacities */  3, 4 );
 
 void SeamCarving::build_graph() {
-    if(this->side == LEFT || this->side == RIGHT){
-        int node_num = (this->end.second - this->end.first + 1) * img.cols;
-        g = new GraphType(node_num , node_num * 4);
-        for(int i = this->end.first ; i <= this->end.second ; i++){
-            for(int j = 0; j < img.cols ; j++){
-                g->add_node();
+    int node_num = (this->end.second - this->end.first + 1) * img.cols;
+    g = new GraphType(node_num , node_num * 4);
+    for(int i = this->end.first ; i <= this->end.second ; i++){
+        for(int j = 0; j < img.cols ; j++){
+            g->add_node();
+        }
+    }
+    for(int i = this->end.first ; i <= this->end.second ; i++){
+        g->add_tweights((i - end.first) * img.cols , INF , 0);
+        g->add_tweights((i - end.first) * img.cols + img.cols - 1 , 0 , INF);
+    }
+    for(int i = this->end.first ; i <= this->end.second ; i++ ){
+        for(int j = 0 ; j < img.cols ; j++){
+            int now = (i - end.first) * img.cols;
+            if(j < img.cols - 1){
+                if(j == img.cols - 2){
+                    g->add_edge(now , now + 1 , 0 , INF);
+                }
+                else {
+                    Vec3d diff = ((Vec3d)img.at<Vec3b>(i , j) - (Vec3d)img.at<Vec3b>(i , j + 2));
+                    double res = diff.dot(diff);
+                    g->add_edge(now , now + 1 , res , INF);
+                }
+            }
+            if(i < this->end.second){
+                int idx = now + img.cols;
+                if(j == 0) {
+                    g->add_edge(now, idx, 0, 0);
+                }
+                else {
+                    Vec3d diff = ((Vec3d)img.at<Vec3b>(i + 1, j) - (Vec3d)img.at<Vec3b>(i , j - 1));
+                    double cnt1 = diff.dot(diff);
+                    diff = ((Vec3d)img.at<Vec3b>(i , j) - (Vec3d)img.at<Vec3b>(i + 1 , j - 1));
+                    double cnt2 = diff.dot(diff);
+                    g->add_edge(now , idx , cnt1 , cnt2);
+                }
+            }
+            {
+                if(j == img.cols - 1 || i == end.second)continue;
+                int idx1 = now + 1;
+                int idx2 = now + img.cols;
+                g->add_edge(idx1 , idx2 , INF , 0);
+            }
+            {
+                if(j == img.cols - 1 || i == end.second)continue;
+                int idx1 = now;
+                int idx2 = now + img.cols + 1;
+                g->add_edge(idx2 , idx1 , INF , 0);
+
             }
         }
-        for(int i = this->end.first ; i <= this->end.second ; i++){
-            g->add_tweights((i - end.first) * img.cols , INF , 0);
-            g->add_tweights((i - end.first) * img.cols + img.cols - 1 , 0 , INF);
-        }
-        for(int i = this->end.first ; i <= this->end.second ; i++ ){
-            for(int j = 0 ; j < img.cols ; j++){
+    }
 
+}
+void SeamCarving::segment(){
+    g->maxflow();
+    this->pos.clear();
+    for(int i = end.first; i <= end.second ; i++){
+        for(int j = 0; j < img.cols - 1 ; j++){
+            int now = (i - end.first) * img.cols + j;
+            if(g->what_segment(now) != g->what_segment(now + 1)){
+                this.pos.emplace_back(j);
+                break;
             }
         }
-
-
     }
 }
-
 bool SeamCarving::add_seam(){
     get_long_boundary();
     if(this->end.first == -1)return true;
+    if(this->side == TOP || this->side == BOTTOM){
+        transpose(img, img);
+        transpose(mask , mask);
+    }
     build_graph();
+    for(int i = end.first ; i <= end.second ; i++){
+        int p = i - end.first;
+
+        if(this->side == TOP || this->side == LEFT){
+            for(int j = 0 ; j < p ; j ++){
+                img.at<Vec3b>(i , j) = img.at<Vec3b>(i , j + 1);
+                mask.at<uchar>(i , j) = mask.at<uchar>(i , j + 1);
+            }
+
+        }
+        else {
+            for(int j = img.cols - 1 ; j > p ; j --){
+                img.at<Vec3b>(i , j) = img.at<Vec3b>(i , j - 1);
+                mask.at<uchar>(i , j) = mask.at<uchar>(i , j - 1);
+            }
+        }
+        int cnt =0 ;
+        if(p == 0 || p == img.cols - 1){
+            if(p == 0 ){
+                img.at<Vec3b>(i , p) = img.at<Vec3b>(i , p + 1);
+            }
+            else {
+                img.at<Vec3b>(i , p) = img.at<Vec3b>(i , p - 1);
+
+            }
+        }
+        else {
+            img.at<Vec3b>(i , p) = (img.at<Vec3b>(i , p - 1) + img.at<Vec3b>(i , p + 1)) / 2;
+        }
+        mask.at<uchar>(i , p) = ADT;
+
+    }
+    return false;
+
 }
 void SeamCarving::show(){
     Mat pre = img.clone();

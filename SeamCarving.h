@@ -17,6 +17,7 @@ private:
     pair<int , int>end;
     int side;
     GraphType *g ;
+    vector<int>pos;
 
 
 public:
@@ -24,6 +25,7 @@ public:
     void get_long_boundary();
     bool add_seam();
     void build_graph();
+    void segment();
     void show();
 
 
