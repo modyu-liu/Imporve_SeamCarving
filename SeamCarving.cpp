@@ -9,6 +9,7 @@ SeamCarving::SeamCarving(Mat &img , Mat &mask) {
     this->mask = mask;
     this->dp = vector<vector<double>>(max(img.rows , img.cols) , vector<double>(max(img.rows , img.cols) , 0));
     this->fa = vector<vector<int>>(max(img.rows , img.cols) , vector<int>(max(img.rows , img.cols) , 0));
+    this->dis = vector<vector<Point>>(img.rows , vector<Point>(img.cols , Point(0 , 0)));
 
     add_seam();
 
@@ -150,10 +151,7 @@ void SeamCarving::get_long_boundary() {
     //show();
 }
 
-double SeamCarving::get_diff(int x , int y){
-    int diff = x - y;
-    return diff;
-}
+
 
 void SeamCarving::calc_seam(){
     Mat grayimg ;
@@ -445,7 +443,128 @@ bool SeamCarving::add_seam(){
         //waitKey(1);
 
        // cout<<"finish"<<'\n';
+       if(side == LEFT){
+           for(int i = end.first ; i <= end.second ; i++){
+               for(int j = 0 ; j < this->pos[i - end.first]; j ++){
+                   dis[i][j].y = dis[i][j + 1].y - 1;
+                   dis[i][j].x = dis[i][j + 1].x;
+               }
+           }
+       }
+       else if(side == RIGHT){
+           for(int i = end.first ; i <= end.second ; i++){
+               for(int j = img.cols - 1 ; j > this->pos[i - end.first]; j --){
+                   dis[i][j].y = dis[i][j - 1].y + 1;
+                   dis[i][j].x = dis[i][j - 1].x;
+               }
+           }
+       }
+       else if(side == TOP){
+           for(int i = end.first ; i <= end.second ; i++){
+               for(int j = 0 ; j < this->pos[i - end.first]; j ++){
+                   dis[j][i].y = dis[j + 1][i].y ;
+                   dis[j][i].x = dis[j + 1][i].x - 1;
+               }
+           }
+       }
+       else if(side = BOTTOM){
+           for(int i = end.first ; i <= end.second ; i++){
+               for(int j = img.rows - 1 ; j > this->pos[i - end.first]; j --){
+                   dis[j][i].y = dis[j - 1][i].y ;
+                   dis[j][i].x = dis[j - 1][i].x + 1;
+               }
+           }
+       }
     }
+
+    Rect_wrap();
+
+}
+void SeamCarving::Rect_wrap(){
+    /* a = x / y
+     * xy = 400
+     * ay^2 = 400
+     * y = sqrt(400/a)
+     * */
+    double a = (double)img.rows / img.cols;
+    cout<<"check::"<<a<<'\n';
+
+    int cols = sqrt(400.0 / a);
+
+    int rows = 400 / cols;
+    cout<<"find::"<<rows<<' '<<cols<<'\n';
+
+    int row_num = img.rows / rows;
+    int col_num = img.cols / cols;
+
+    cout<<"ppp::"<<row_num<<' '<<col_num<<'\n';
+    vector<vector<Point>>res;
+
+    for(int i = 0 ;i < img.rows ; i += row_num){
+        vector<Point>pre;
+        for(int j = 0; j < img.cols ; j += col_num ){
+            pre.emplace_back(Point(i , j));
+        }
+        res.emplace_back(pre);
+    }
+    if(img.rows % row_num != 0){
+        vector<Point>pre;
+        for(int j = 0; j < img.cols ; j += col_num ){
+            pre.emplace_back(Point(img.rows - 1 , j));
+        }
+        res.emplace_back(pre);
+    }
+    if(img.cols % col_num != 0){
+        vector<Point>pre;
+        for(int j = 0; j < img.cols ; j += col_num ){
+            pre.emplace_back(Point(img.rows - 1 , j));
+        }
+        res.emplace_back(pre);
+    }
+    /*
+    for(int i = 0 ; i < res.size() ;i ++){
+        for(auto it : res[i]){
+            circle(img, it, 2, Scalar(0, 255, 0), 2);
+        }
+    }
+    imshow("img" , img);
+    waitKey(0);
+    */
+    this->ordinate = res;
+    irrect_wrap();
+
+}
+void SeamCarving::irrect_wrap(){
+    for(int i = 0; i < this->ordinate.size() ; i++){
+        for(int j = 0; j < this->ordinate[i].size() ; j++){
+            int x = this->ordinate[i][j].x;
+            int y = this->ordinate[i][j].y;
+            int new_x = x - dis[x][y].x;
+            int new_y = y - dis[x][y].y;
+            this->ordinate[i][j] = Point(new_x , new_y);
+        }
+    }
+    Mat pre = Mat(img.rows , img.cols , CV_8UC3  ,Scalar(255,255,255));
+    for(int i = 0; i < img.rows ; i++){
+        for(int j = 0; j < img.cols ; j++){
+            if(mask.at<uchar>(i , j) == BG || mask.at<uchar>(i , j) == ADT){
+                continue;
+            }
+            else {
+                int x = i - dis[i][j].x;
+                int y = j - dis[i][j].y;
+                pre.at<Vec3b>(x , y) = img.at<Vec3b>(i , j);
+            }
+        }
+    }
+    for(int i = 0; i < this->ordinate.size() ; i++){
+        for(int j = 0; j < this->ordinate[i].size() ; j++){
+            Point now = Point(this->ordinate[i][j].y , this->ordinate[i][j].x);
+            circle(pre , now , 2 , Scalar(0, 255, 0) , 2);
+        }
+    }
+    imshow("img" , pre);
+    waitKey(0);
 
 }
 void SeamCarving::show(){

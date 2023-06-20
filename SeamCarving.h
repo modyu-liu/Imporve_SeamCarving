@@ -12,10 +12,11 @@ const int INF = 1e8;
 
 class SeamCarving{
 private:
-    Mat img , mask , emap , subimg , submask;
+    Mat img , mask , emap , subimg , submask ;
     pair<int , int>end;
     vector<vector<double>>dp ;
     vector<vector<int>>fa;
+    vector<vector<Point>>dis , ordinate;
     int side;
     vector<int>pos;
 
@@ -26,7 +27,8 @@ public:
     bool add_seam();
     void calc_seam();
     void calc_e1();
-    double get_diff(int x , int y);
+    void Rect_wrap();
+    void irrect_wrap();
     void show();
 
 };
