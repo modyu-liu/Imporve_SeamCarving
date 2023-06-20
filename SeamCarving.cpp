@@ -24,6 +24,7 @@ void SeamCarving::calc_e1() {
     Sobel(this->subimg, gy, CV_32F, 0, 1);
     magnitude(gx, gy, this->emap);  // 只计算合梯度的幅值
     // maxn 500
+    /*
     double maxn = 0 ;
     for(int i = 0; i < subimg.rows ; i++){
         for(int j = 0; j < subimg.cols ; j++){
@@ -31,6 +32,7 @@ void SeamCarving::calc_e1() {
         }
     }
     this->emap = this->emap * 1 / maxn * 255;
+    */
     for(int i = 0; i < subimg.rows ; i++){
         for(int j = 0; j < subimg.cols ; j++){
             if(submask.at<uchar>(i , j) == BG){
@@ -385,19 +387,20 @@ bool SeamCarving::add_seam(){
                 }
             } else {
                 img.at<Vec3b>(i, this->pos[p]) = img.at<Vec3b>(i, this->pos[p] - 1) / 2 + img.at<Vec3b>(i, this->pos[p] + 1) / 2;
+                Vec3b rev(255 - img.at<Vec3b>(i, this->pos[p])[0] , 255 - img.at<Vec3b>(i, this->pos[p])[1] , 255 - img.at<Vec3b>(i, this->pos[p])[2]);
+                img.at<Vec3b>(i, this->pos[p]) = rev;
+                //img.at<Vec3b>(i, this->pos[p]) = img.at<Vec3b>(i, this->pos[p] - 1) / 2 + img.at<Vec3b>(i, this->pos[p] + 1) / 2;
             }
             if(mask.at<uchar>(i , this->pos[p]) != BG) {
                 mask.at<uchar>(i, this->pos[p]) = ADT;
             }
         }
-
         //cout << "point3" << '\n';
-
-
         if (this->side == TOP || this->side == BOTTOM) {
             transpose(img, img);
             transpose(mask, mask);
         }
+        /*
         Mat pre(img.rows , img.cols , CV_8UC3);
         for(int i = 0; i < img.rows ; i++){
             for(int j = 0 ; j < img.cols ; j++){
@@ -434,9 +437,9 @@ bool SeamCarving::add_seam(){
             }
         }
 
-        //imshow("img" , pre);
-        //waitKey(1);
-
+        imshow("img" , pre);
+        waitKey(1);
+        */
         //cout << "point4" << '\n';
         //imshow("img" , img);
         //waitKey(1);
