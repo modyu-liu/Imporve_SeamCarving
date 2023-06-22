@@ -10,14 +10,8 @@ globalwarp::globalwarp(Mat img, vector<vector<Point>> mordinate) {
     this->seg_line = vector<vector<vector<pair<Point , Point>>>>(mordinate.size() - 1 , vector<vector<pair<Point , Point>>>(mordinate[0].size() - 1 , vector<pair<Point , Point>>()));
     this->allocate = vector<vector<vector<int>>>(this->mordinate.size() - 1,  vector<vector<int>>(this->mordinate[0].size() - 1, vector<int>()));
     get_shape_preservation();
-    cout<<"ok?"<<'\n';
-
     get_line();
-    cout<<"ok?"<<'\n';
-
     mseg_line();
-    cout<<"ok?"<<'\n';
-
     init_rotate();
     get_line_preservation();
     //show();
@@ -331,21 +325,13 @@ void globalwarp::init_rotate(){
     }
     */
 }
-bool globalwarp::in_line(Point x, Point a, Point b) {
-    Point ab = b - a;
-    Point ax = x - a;
-    if(abs(ab.x * ax.y - ab.y * ax.x) < 1e-6 ) return true;
-    else return false;
-}
 //逆双线性差值推导 https://www.cnblogs.com/lipoicyclic/p/16338901.html
 MatrixXd globalwarp::inv_biliner(Point P , int x, int y) {
     Point A = this->mordinate[x][y];
     Point B = this->mordinate[x][y + 1];
     Point C = this->mordinate[x + 1][y + 1];
     Point D = this->mordinate[x + 1][y];
-
     Vector2d p(P.x , P.y);
-
     Vector2d a(A.x , A.y);
     Vector2d b(B.x , B.y);
     Vector2d c(C.x , C.y);
@@ -354,7 +340,6 @@ MatrixXd globalwarp::inv_biliner(Point P , int x, int y) {
     auto f = d-a;
     auto g = a-b+c-d;
     auto h = p-a;
-
     auto cross2d = [&](Vector2d v1 , Vector2d v2){
         return v1(0) * v2(1) - v1(1) * v2(0);
     };
@@ -362,39 +347,19 @@ MatrixXd globalwarp::inv_biliner(Point P , int x, int y) {
     double k1 = cross2d( e, f ) + cross2d( h, g );
     double k0 = cross2d( h, e );
     double u , v;
-    // if edges are parallel, this is a linear equation
     int flag = 0;
     if( abs(k2) < 0.001 ){
-        //v = -k1 / k0;
-        //u = (h(0) - f(0) * v) / (e(0) + g(0) * v);
         flag = 1;
         u = (h(0) * k1 + f(0) * k0)/(e(0) * k1 - g(0) * k0);
         v = -k0/k1;
-        /*
-        if(u < 0 || u > 1 || v < 0 || u > 1) {
-            cout << "check::" << k0 << ' ' << k1 << '\n';
-            cout << a(0) << ' ' << a(1) << ' ' << b(0) << ' ' << b(1) << ' ' << c(0) << ' ' << c(1) << ' ' << d(0)
-                 << ' ' << d(1) << '\n';
-
-            cout << "parll " << ' ' << u << ' ' << v << '\n';
-        }
-         */
-
     }
     else {
         double w = k1 * k1 - 4.0 * k0 * k2;
-        flag = 2;
         if( w < 0.0 ) {
-            cout<<"ver : "<<'\n';
-
-            cout<<"ok?"<<k0<<' '<<k1<<' '<<k2<<'\n';
-
             cout<<"no solution!"<<'\n';
             exit(0);
         }
-
         w = sqrt(w);
-
         double ik2 = 0.5 / k2;
         v = (-k1 - w)*ik2;
         u = (h(0) - f(0) * v)/(e(0) + g(0) * v);
@@ -402,29 +367,8 @@ MatrixXd globalwarp::inv_biliner(Point P , int x, int y) {
             v = (-k1 + w)*ik2;
             u = (h(0) - f(0) * v )/(e(0) + g(0) * v);
         }
-        /*
-        else if(){
-            cout<<"ver:"<<'\n';
-            cout<<"check::"<<u<<' '<<v<<'\n';
-            cout<<a(0)<<' '<<a(1)<<' '<<b(0)<<' '<<b(1)<<' '<<c(0)<<' '<<c(1)<<' '<<d(0)<<' '<<d(1)<<'\n';
-            cout<<"point"<<'\n';
-            cout<<p(0)<<' '<<p(1)<<'\n';
-
-            cout<<"no solution"<<'\n';
-
-        }
-        */
-
-        auto xx = a + (b - a) * u + (d - a) * v + (a - b + c - d) * u * v;
-        double dis = (xx(0) - p(0)) * (xx(0) - p(0)) + (xx(1) - p(1)) * (xx(1) - p(1));
-        dis = sqrt(dis);
-        if(dis > 0.1){
-            cout<<"this- in se"<<'\n';
-
-            cout<<"dis long "<< dis<<'\n';
-        }
-
     }
+    /*
     auto xx = a + (b - a) * u + (d - a) * v + (a - b + c - d) * u * v;
     double dis = (xx(0) - p(0)) * (xx(0) - p(0)) + (xx(1) - p(1)) * (xx(1) - p(1));
     dis = sqrt(dis);
@@ -434,17 +378,14 @@ MatrixXd globalwarp::inv_biliner(Point P , int x, int y) {
         }
         else {
             cout<<"wa in se"<<'\n';
-
         }
-
         cout<<"dis long "<< dis<<'\n';
     }
+    */
     double w1 = 1 - u - v + u * v;
     double w2 = u - u * v;
     double w3 = u * v;
     double w4 = v - u * v;
-
-
     MatrixXd w(2, 8);
     w << w1, 0, w2, 0, w3, 0, w4, 0,
             0, w1, 0, w2, 0, w3, 0, w4;
@@ -457,31 +398,12 @@ SparseMatrix<double> globalwarp::get_line_preservation() {
         for(int j = 0 ; j < this->mordinate[0].size() - 1 ; j++){
             for(auto it : this->seg_line[i][j] ){
                 auto w1 = inv_biliner(it.first , i , j);
-                //auto w2 = inv_biliner(it.second, i , j);
-                MatrixXd p(8 , 1);
-                Point a = this->mordinate[i][j];
-                Point b = this->mordinate[i][j + 1];
-                Point c = this->mordinate[i + 1][j + 1];
-                Point d = this->mordinate[i + 1][j];
+                auto w2 = inv_biliner(it.second, i , j);
 
-                p << a.x , a.y , b.x , b.y , c.x , c.y , d.x , d.y;
-
-                auto ans = w1 * p;
-                //cout<<"down!"<<'\n';
-                auto res = it.second - it.first;
-                double dis = (ans(0) - it.first.x) * (ans(0) - it.first.x) + (ans(1) - it.first.y) * (ans(1) - it.first.y) ;
-                dis = sqrt(dis);
-                sum++;
-                if(dis > 0.1){
-                    num++;
-                    cout<<"error!"<<'\n';
-
-                    cout<<ans(0)<<' '<<ans(1)<<' '<<it.first.x<<' '<<it.first.y<<'\n';
-                }
             }
         }
     }
-    cout<<"p"<<' '<<num<<' '<<sum<<'\n';
+    //cout<<"p"<<' '<<num<<' '<<sum<<'\n';
 
 }
 
