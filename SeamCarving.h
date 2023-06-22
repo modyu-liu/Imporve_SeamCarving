@@ -30,5 +30,6 @@ public:
     void Rect_wrap();
     void irrect_wrap();
     void show();
+    vector<vector<Point>> get_ordinate();
 
 };

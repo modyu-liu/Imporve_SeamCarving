@@ -1,9 +1,8 @@
-#include<bits/stdc++.h>
-#include<opencv2/opencv.hpp>
-#include "SeamCarving.h"
 
-using namespace std;
-using namespace cv;
+#include "globalwarp.h"
+#include "SeamCarving.h"
+#include <sys/time.h>
+
 void fillHole(Mat src , Mat &dst){
     cv::Size m_Size = src.size();
     Mat Temp = Mat::zeros(m_Size.height + 2, m_Size.width + 2, src.type());
@@ -39,7 +38,15 @@ Mat clean(Mat src ){
     erode(dilate_out, erode_out, element);
     return erode_out;
 }
+long getCurrentTime()
+{
+    struct timeval tv;
+    gettimeofday(&tv,NULL);
+    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
+
 int main(){
+    long time1 = getCurrentTime();
     Mat img ;
     //img = imread("2.png");
     img = imread("1.jpg");
@@ -114,5 +121,10 @@ int main(){
     prepare();
 
     SeamCarving seam(img , mask);
+    globalwarp globalwarp(img , seam.get_ordinate());
+
+    long time2 = getCurrentTime();
+    cout<<"check::"<<time2 - time1<<"ms"<<'\n';
+
     return 0 ;
 }

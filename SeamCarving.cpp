@@ -12,11 +12,11 @@ SeamCarving::SeamCarving(Mat &img , Mat &mask) {
     this->dis = vector<vector<Point>>(img.rows , vector<Point>(img.cols , Point(0 , 0)));
 
     add_seam();
-
+    /*
     imshow("img" , this->img);
     waitKey(0);
     //calc_hog();
-
+    */
 }
 //使用e1能量函数
 void SeamCarving::calc_e1() {
@@ -487,17 +487,17 @@ void SeamCarving::Rect_wrap(){
      * y = sqrt(400/a)
      * */
     double a = (double)img.rows / img.cols;
-    cout<<"check::"<<a<<'\n';
+    //cout<<"check::"<<a<<'\n';
 
     int cols = sqrt(400.0 / a);
 
     int rows = 400 / cols;
-    cout<<"find::"<<rows<<' '<<cols<<'\n';
+    //cout<<"find::"<<rows<<' '<<cols<<'\n';
 
     int row_num = img.rows / rows;
     int col_num = img.cols / cols;
 
-    cout<<"ppp::"<<row_num<<' '<<col_num<<'\n';
+    //cout<<"ppp::"<<row_num<<' '<<col_num<<'\n';
     vector<vector<Point>>res;
 
     for(int i = 0 ;i < img.rows ; i += row_num){
@@ -505,19 +505,19 @@ void SeamCarving::Rect_wrap(){
         for(int j = 0; j < img.cols ; j += col_num ){
             pre.emplace_back(Point(i , j));
         }
+        if(pre.back().y != img.cols - 1){
+            pre.emplace_back(Point(i , img.cols - 1));
+        }
         res.emplace_back(pre);
     }
-    if(img.rows % row_num != 0){
+
+    if(res.back().back().x != img.rows - 1){
         vector<Point>pre;
         for(int j = 0; j < img.cols ; j += col_num ){
             pre.emplace_back(Point(img.rows - 1 , j));
         }
-        res.emplace_back(pre);
-    }
-    if(img.cols % col_num != 0){
-        vector<Point>pre;
-        for(int j = 0; j < img.cols ; j += col_num ){
-            pre.emplace_back(Point(img.rows - 1 , j));
+        if(pre.back().y != img.cols - 1){
+            pre.emplace_back(Point(img.rows - 1 , img.cols - 1));
         }
         res.emplace_back(pre);
     }
@@ -544,6 +544,7 @@ void SeamCarving::irrect_wrap(){
             this->ordinate[i][j] = Point(new_x , new_y);
         }
     }
+    /*
     Mat pre = Mat(img.rows , img.cols , CV_8UC3  ,Scalar(255,255,255));
     for(int i = 0; i < img.rows ; i++){
         for(int j = 0; j < img.cols ; j++){
@@ -565,7 +566,10 @@ void SeamCarving::irrect_wrap(){
     }
     imshow("img" , pre);
     waitKey(0);
-
+    */
+}
+vector<vector<Point>> SeamCarving::get_ordinate() {
+    return this->ordinate;
 }
 void SeamCarving::show(){
     Mat pre = img.clone();
@@ -573,6 +577,7 @@ void SeamCarving::show(){
     //cout<<(int)pre.at<Vec3b>(img.rows - 1, 4182)[0]<<' '<<(int)pre.at<Vec3b>(img.rows - 1, 4182)[1]<<' ' << (int)pre.at<Vec3b>(img.rows - 1, 4182)[2]<<'\n';
     //cout<<(int)img.at<Vec3b>(img.rows - 1, 4182)[0]<<' '<<(int)img.at<Vec3b>(img.rows - 1, 4182)[1]<<' ' << (int)img.at<Vec3b>(img.rows - 1, 4182)[2]<<'\n';
     //cout<<(int)mask.at<uchar>(img.rows - 1 , 4182)<<'\n';
+
 
     if(this->side == LEFT){
 
@@ -598,6 +603,7 @@ void SeamCarving::show(){
             pre.at<Vec3b>(pre.rows - 1 , i) = BLUE;
         }
     }
+
     cout<<"inthis"<<'\n';
 
     imshow("image" , pre);
