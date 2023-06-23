@@ -9,11 +9,15 @@ globalwarp::globalwarp(Mat img, vector<vector<Point>> mordinate) {
     this->mordinate = mordinate;
     this->seg_line = vector<vector<vector<pair<Point , Point>>>>(mordinate.size() - 1 , vector<vector<pair<Point , Point>>>(mordinate[0].size() - 1 , vector<pair<Point , Point>>()));
     this->allocate = vector<vector<vector<int>>>(this->mordinate.size() - 1,  vector<vector<int>>(this->mordinate[0].size() - 1, vector<int>()));
+    this->rotate = vector<double>(50 , 0);
+    this->seg_num = 0;
+
     get_shape_preservation();
     get_line();
     mseg_line();
     init_rotate();
     get_line_preservation();
+    start_learn();
     //show();
     /*
     Point a(0 , 0);
@@ -40,8 +44,8 @@ MatrixXd globalwarp::get_single_shape_preservation(int x , int y){
             Aq(i , 3) = 0.0;
         }
         else {
-            Aq(i , 0) = (double)p[i / 2].x;
-            Aq(i , 1) = (double)p[i / 2].y;
+            Aq(i , 0) = (double)p[i / 2].y;
+            Aq(i , 1) = (double)p[i / 2].x;
             Aq(i , 2) = 0.0;
             Aq(i , 3) = 1.0;
         }
@@ -72,7 +76,8 @@ SparseMatrix<double> globalwarp::get_shape_preservation(){
             }
         }
     }
-    cout<<"finish"<<'\n';
+    //
+    // cout<<"finish"<<'\n';
     return A;
 
 }
@@ -184,6 +189,8 @@ Point globalwarp::get_intersection(Point a , Point b , Point c , Point d){
 void globalwarp::mseg_line() {
     int num = 0;
     //cout<<"check line size "<<' '<<this->line.size()<<'\n';
+    int f1[9] = {0 , 0 , 0 , 1 , 1 , 1 , -1 , -1 , -1};
+    int f2[9] = {0 , -1 , 1, 0 , -1 , 1 , 0 , -1 , 1};
 
     for(auto it : this->line) {
         for (int i = 0; i < this->mordinate.size() - 1; i++) {
@@ -228,18 +235,45 @@ void globalwarp::mseg_line() {
                 }
                 if (pre.size() < 2)continue;
                 if (pre.size() > 2) {
-                    if (pre[1].x == pre[2].x && pre[1].y == pre[2].y) {
-                        pre.pop_back();
-                    } else {
-                        vector <Point> cnt{pre[1], pre[2]};
-                        pre = cnt;
+                    vector<Point>cnt;
+                    for(int i = 0; i < pre.size() ; i++){
+                        for(int j = i + 1; j < pre.size() ; j++ ){
+                            auto now = pre[j] - pre[i];
+                            if(now.x * now.x + now.y * now.y > 2){
+                                cnt = vector<Point>{pre[i] , pre[j]};
+                            }
+                        }
+                    }
+                    pre = cnt;
+                }
+                if(pre.size() < 2)continue;
+
+                for(int k = 0; k < 9 ; k++){
+                    int x = pre[0].x + f1[k];
+                    int y = pre[0].y + f2[k];
+                    if(inmesh(Point(x , y) , i , j)){
+                        pre[0].x = x;
+                        pre[0].y = y;
+                        break;
                     }
                 }
+                for(int k = 0; k < 9 ; k++){
+                    int x = pre[1].x + f1[k];
+                    int y = pre[1].y + f2[k];
+                    if(inmesh(Point(x , y) , i , j)){
+                        pre[1].x = x;
+                        pre[1].y = y;
+                        break;
+                    }
+                }
+
                 Point res = pre[1] - pre[0];
                 if (res.x * res.x + res.y * res.y <= 2) {
                     continue;
                 }
                 this->seg_line[i][j].emplace_back(make_pair(pre[0], pre[1]));
+                this->seg_num++;
+
                 /*
                 Mat Pre = img.clone();
                 cv::line(Pre, Point(a.y , a.x) , Point(b.y , b.x) , Scalar(255, 0 , 0) , 1);
@@ -325,6 +359,12 @@ void globalwarp::init_rotate(){
     }
     */
 }
+bool globalwarp::in_line(Vector2d &p, Vector2d &a, Vector2d &b) {
+    auto ab = b - a;
+    auto ap = p - a;
+    if((ab(0) * ap(1) - ab(1) * ap(0)) == 0)return true;
+    else return false;
+}
 //逆双线性差值推导 https://www.cnblogs.com/lipoicyclic/p/16338901.html
 MatrixXd globalwarp::inv_biliner(Point P , int x, int y) {
     Point A = this->mordinate[x][y];
@@ -336,77 +376,464 @@ MatrixXd globalwarp::inv_biliner(Point P , int x, int y) {
     Vector2d b(B.x , B.y);
     Vector2d c(C.x , C.y);
     Vector2d d(D.x , D.y);
-    auto e = b-a;
-    auto f = d-a;
-    auto g = a-b+c-d;
-    auto h = p-a;
-    auto cross2d = [&](Vector2d v1 , Vector2d v2){
-        return v1(0) * v2(1) - v1(1) * v2(0);
-    };
-    double k2 = cross2d( g, f );
-    double k1 = cross2d( e, f ) + cross2d( h, g );
-    double k0 = cross2d( h, e );
-    double u , v;
-    int flag = 0;
-    if( abs(k2) < 0.001 ){
-        flag = 1;
-        u = (h(0) * k1 + f(0) * k0)/(e(0) * k1 - g(0) * k0);
-        v = -k0/k1;
-    }
-    else {
-        double w = k1 * k1 - 4.0 * k0 * k2;
-        if( w < 0.0 ) {
-            cout<<"no solution!"<<'\n';
-            exit(0);
-        }
-        w = sqrt(w);
-        double ik2 = 0.5 / k2;
-        v = (-k1 - w)*ik2;
-        u = (h(0) - f(0) * v)/(e(0) + g(0) * v);
-        if( u<0.0 || u>1.0 || v<0.0 || v>1.0 ) {
-            v = (-k1 + w)*ik2;
-            u = (h(0) - f(0) * v )/(e(0) + g(0) * v);
-        }
-    }
-    /*
-    auto xx = a + (b - a) * u + (d - a) * v + (a - b + c - d) * u * v;
-    double dis = (xx(0) - p(0)) * (xx(0) - p(0)) + (xx(1) - p(1)) * (xx(1) - p(1));
-    dis = sqrt(dis);
-    if(dis > 0.1){
-        if(flag == 1){
-            cout<<"wa in pa"<<'\n';
+    double w1 , w2 , w3 , w4;
+    if(in_line( p , a , b)){
+        double u;
+        if((b - a)(0) != 0) {
+            u = (p - a)(0) / (b - a)(0);
         }
         else {
-            cout<<"wa in se"<<'\n';
+            u = (p - a)(1) / (b - a)(1);
         }
-        cout<<"dis long "<< dis<<'\n';
+
+        w1 = 1 - u;
+        w2 = u;
+        w3 = 0;
+        w4 = 0;
     }
-    */
-    double w1 = 1 - u - v + u * v;
-    double w2 = u - u * v;
-    double w3 = u * v;
-    double w4 = v - u * v;
+    else if(in_line(p , b , c)){
+        double u;
+        if((c - b)(0) != 0) {
+            u = (p - b)(0) / (c - b)(0);
+        }
+        else {
+            u = (p - b)(1) / (c - b)(1);
+        }
+        w1 = 0;
+        w2 = 1 - u;
+        w3 = u;
+        w4 = 0;
+    }
+    else if(in_line(p , c , d)){
+        double u;
+        if((d - c)(0) != 0) {
+            u = (p - c)(0) / (d - c)(0);
+        }
+        else {
+            u = (p - c)(1) / (d - c)(1);
+        }
+        w1 = 0;
+        w2 = 0;
+        w3 = 1 - u;
+        w4 = u;
+    }
+    else if(in_line(p , d , a)){
+        double u;
+
+        if((a - d)(0) != 0) {
+            u = (p - d)(0) / (a - d)(0);
+        }
+        else {
+            u = (p - d)(1) / (a - d)(1);
+        }
+        w1 = u;
+        w2 = 0;
+        w3 = 0;
+        w4 = 1 - u;
+    }
+    else {
+        auto e = b - a;
+        auto f = d - a;
+        auto g = a - b + c - d;
+        auto h = p - a;
+        auto cross2d = [&](Vector2d v1, Vector2d v2) {
+            return v1(0) * v2(1) - v1(1) * v2(0);
+        };
+        double k2 = cross2d(g, f);
+        double k1 = cross2d(e, f) + cross2d(h, g);
+        double k0 = cross2d(h, e);
+        double u, v;
+        int flag = 0;
+        if (abs(k2) < 0.001) {
+
+            if((e(1) * k1 - g(1) * k0) == 0 && (e(0) * k1 - g(0) * k0) == 0){
+                cout<<"error !"<<'\n';
+                exit(0);
+            }
+
+            if((e(0) * k1 - g(0) * k0) == 0){
+                u = (h(1) * k1 + f(1) * k0) / (e(1) * k1 - g(1) * k0);
+            }
+            else {
+                u = (h(0) * k1 + f(0) * k0) / (e(0) * k1 - g(0) * k0);
+            }
+            v = -k0 / k1;
+        }
+        else {
+            double w = k1 * k1 - 4.0 * k0 * k2;
+            if (w < 0.0) {
+                cout << "no solution!" << '\n';
+                exit(0);
+            }
+            w = sqrt(w);
+            double ik2 = 0.5 / k2;
+            v = (-k1 - w) * ik2;
+            if((e(1) + g(1) * v) == 0 && (e(0) + g(0) * v) == 0){
+                //cout<<"error ! in this!"<<'\n';
+                exit(0);
+            }
+
+            if((e(0) + g(0) * v) == 0){
+                //cout<<"check::"<<(e(1) + g(1) * v)<<'\n';
+                u = (h(1) - f(1) * v) / (e(1) + g(1) * v);
+            }
+            else {
+
+                //cout<<"check::"<<(e(0) + g(0) * v)<<'\n';
+                //cout<<"ok??"<<e(0)<<' '<<g(0)<<' '<<v<<'\n';
+
+                u = (h(0) - f(0) * v) / (e(0) + g(0) * v);
+            }
+            /*
+            if((e(0) + g(0) * v) == 0){
+                cout<<e(0) <<' '<<g(0)<<' '<<v<<'\n';
+                cout<<e(1) <<' '<<g(1)<<' '<<v<<'\n';
+
+                cout<<"wa wa wa"<<'\n';
+                exit(0);
+
+            }
+             */
+            if (u < 0.0 || u > 1.0 || v < 0.0 || v > 1.0) {
+                v = (-k1 + w) * ik2;
+                if((e(0) + g(0) * v) == 0 && (e(1) + g(1) * v) == 0){
+                    cout<<"error in change !"<<'\n';
+                    exit(0);
+
+                }
+                if((e(0) + g(0) * v) != 0) {
+                    u = (h(0) - f(0) * v) / (e(0) + g(0) * v);
+                }
+                else {
+                    u = (h(1) - f(1) * v) / (e(1) + g(1) * v);
+
+                }
+            }
+        }
+        /*
+        auto xx = a + (b - a) * u + (d - a) * v + (a - b + c - d) * u * v;
+        double dis = (xx(0) - p(0)) * (xx(0) - p(0)) + (xx(1) - p(1)) * (xx(1) - p(1));
+        dis = sqrt(dis);
+        if(dis > 0.1){
+            if(flag == 1){
+                cout<<"wa in pa"<<'\n';
+            }
+            else {
+                cout<<"wa in se"<<'\n';
+            }
+            cout<<"dis long "<< dis<<'\n';
+        }
+        */
+        w1 = 1 - u - v + u * v;
+        w2 = u - u * v;
+        w3 = u * v;
+        w4 = v - u * v;
+        if(isnan(w1) ||isnan(w2) || isnan(w3) || isnan(w4)  ){
+            cout<<u<<' '<<v<<'\n';
+
+            cout<<"nan in w "<<'\n';
+            exit(0);
+
+        }
+    }
     MatrixXd w(2, 8);
     w << w1, 0, w2, 0, w3, 0, w4, 0,
             0, w1, 0, w2, 0, w3, 0, w4;
     return w;
 }
 SparseMatrix<double> globalwarp::get_line_preservation() {
-    int num = 0;
-    int sum = 0;
+
+    SparseMatrix<double> line_pre(2 * this->seg_num , 8 * (this->mordinate.size() - 1) * (this->mordinate[0].size() - 1));
+    int idx = 0;
+
     for(int i = 0; i < this->mordinate.size() - 1 ; i ++){
         for(int j = 0 ; j < this->mordinate[0].size() - 1 ; j++){
-            for(auto it : this->seg_line[i][j] ){
+            for(int k = 0; k < this->seg_line[i][j].size() ; k++) {
+                auto it = this->seg_line[i][j][k];
                 auto w1 = inv_biliner(it.first , i , j);
                 auto w2 = inv_biliner(it.second, i , j);
 
+                int B = this->allocate[i][j][k];
+                double theta = this->rotate[B];
+                MatrixXd R(2 , 2);
+                R << cos(theta) , -sin(theta) , sin(theta) , cos(theta);
+                MatrixXd E(2 , 1);
+                E << (it.second - it.first).x , (it.second - it.first).y;
+                auto C = R * E * (E.transpose() * E).inverse() * E.transpose() * R.transpose() - MatrixXd::Identity(2 , 2);
+                auto w = w2 - w1;
+                auto Ce = C * w;
+                for(int g = 0 ; g < 8 ; g++){
+                    if(isnan(Ce(0 , g))){
+
+                        cout<<"Ce(0 , g) is nan" <<'\n';
+                        for(int i = 0; i < 2 ; i++){
+                            for(int j = 0 ;j < 8 ; j++){
+                                cout<<w1(i , j)<<' ';
+                            }
+                            cout<<'\n';
+
+                        }
+                        for(int i = 0; i < 2 ; i++){
+                            for(int j = 0 ;j < 8 ; j++){
+                                cout<<w2(i , j)<<' ';
+                            }
+                            cout<<'\n';
+
+                        }
+                        Point a = this->mordinate[i][j];
+                        Point b = this->mordinate[i][j + 1];
+                        Point c = this->mordinate[i + 1][j + 1];
+                        Point d = this->mordinate[i + 1][j];
+
+                        cout<<a.x<<' '<<a.y<<' '<<b.x<<' '<<b.y<<' '<<c.x<<" "<<c.y<<' '<<d.x<<' '<<d.y<<'\n';
+                        cout<<"point1:" << ' '<<it.first.x <<' '<<it.first.y<<'\n';
+                        cout<<"point2:" << ' '<<it.second.x <<' '<<it.second.y<<'\n';
+
+                        exit(0);
+                    }
+                    line_pre.insert(idx , 8 *  ( i * (this->mordinate[0].size() - 1) + j ) + g) = Ce(0 , g);
+                }
+                idx++;
+                for(int g = 0 ; g < 8 ; g++){
+                    if(isnan(Ce(0 , g))){
+                        cout<<"Ce(1 , g) is nan" <<'\n';
+                        exit(0);
+                    }
+                    line_pre.insert(idx , 8 *  ( i * (this->mordinate[0].size() - 1) + j ) + g) = Ce(1 , g);
+                }
+                idx++;
+
+            }
+
+                /*
+                // check
+                MatrixXd p(8 , 1);
+                Point a = this->mordinate[i][j];
+                Point b = this->mordinate[i][j + 1];
+                Point c = this->mordinate[i + 1][j + 1];
+                Point d = this->mordinate[i + 1][j];
+                p << a.x , a.y , b.x , b.y , c.x , c.y , d.x , d.y;
+                auto ans1 = w1 * p;
+                auto ans2 = w2 * p;
+                double dis1 = (ans1(0) - it.first.x) * (ans1(0) - it.first.x) + (ans1(1) - it.first.y) * (ans1(1) - it.first.y);
+                double dis2 = (ans2(0) - it.second.x) * (ans2(0) - it.second.x) + (ans2(1) - it.second.y) * (ans2(1) - it.second.y);
+                dis1 = sqrt(dis1);
+                dis2 = sqrt(dis2);
+                */
+
+        }
+    }
+    return line_pre;
+
+}
+pair<SparseMatrix<double> , VectorXd> globalwarp::get_boundary_constraints() {
+    int vernum = (this->mordinate.size() ) * (this->mordinate[0].size() );
+    SparseMatrix<double> bound(2 * vernum , 2 * vernum);
+    VectorXd b(2 * vernum , 1);
+    // top and bottom
+    //map<int , int>ma;
+
+    for(int i = 0; i < this->mordinate[0].size() ; i++){
+        int idx1 = 2 * i;
+        int idx2 = 2 * ((this->mordinate[0].size()) * (this->mordinate.size() - 1) + i);
+        // ma[idx1] = 1;
+        // ma[idx2] = 1;
+        bound.insert(idx1 , idx1) = 1;
+        bound.insert(idx2 , idx2) = 1;
+        b(idx1) = 0;
+        b(idx2) = this->img.rows - 1;
+    }
+    //left and right
+    //cout<<"check::left ans right"<<'\n';
+
+    for(int i = 0; i < this->mordinate.size(); i++){
+
+        int idx1 = 2 * i * (this->mordinate[0].size());
+        int idx2 = 2 * ( i * (this->mordinate[0].size()) + this->mordinate[0].size() - 1 );
+
+        bound.insert(idx1 + 1, idx1 + 1) = 1;
+        bound.insert(idx2 + 1, idx2 + 1) = 1;
+        b(idx1 + 1) = 0;
+        b(idx2 + 1) = this->img.cols - 1;
+    }
+
+    return make_pair(bound , b);
+
+}
+SparseMatrix<double> globalwarp::get_position_information() {
+    int quad_num = (this->mordinate.size() - 1) * (this->mordinate[0].size() - 1);
+    int ver_num = this->mordinate.size() * this->mordinate[0].size();
+
+    SparseMatrix<double> pos(8 * quad_num , ver_num * 2);
+
+    for(int i = 0; i < this->mordinate.size() - 1 ; i++){
+        for(int j = 0; j < this->mordinate[i].size() - 1 ; j++){
+
+            int idx1 = i * this->mordinate[0].size() + j;
+            int idx2 = idx1 + 1;
+            int idx3 = idx2 + this->mordinate[0].size();
+            int idx4 = idx1 + this->mordinate[0].size();
+            int q_num = 8 * ( i * (this->mordinate[0].size() - 1) + j );
+            pos.insert(q_num + 0 , 2 * idx1) = 1;
+            pos.insert(q_num + 1 , 2 * idx1 + 1) = 1;
+            pos.insert(q_num + 2 , 2 * idx2) = 1;
+            pos.insert(q_num + 3 , 2 * idx2 + 1) = 1;
+            pos.insert(q_num + 4 , 2 * idx3) = 1;
+            pos.insert(q_num + 5 , 2 * idx3 + 1) = 1;
+            pos.insert(q_num + 6 , 2 * idx4) = 1;
+            pos.insert(q_num + 7 , 2 * idx4 + 1) = 1;
+        }
+    }
+    return pos;
+
+}
+void globalwarp::update_rotate(VectorXd &V){
+    vector<double>r(50);
+    vector<int>num(50 , 0);
+
+    for(int i = 0; i < this->mordinate.size() - 1; i ++){
+        for(int j = 0; j < this->mordinate[0].size() - 1 ; j++){
+            int idx1 = (i * this->mordinate[0].size()) + j;
+            int idx2 = idx1 + 1;
+            int idx3 = idx2 + this->mordinate[0].size();
+            int idx4 = idx1 + this->mordinate[0].size();
+
+            Vector2d a(V(idx1 * 2) , V(idx1 * 2 + 1));
+            Vector2d b(V(idx2 * 2) , V(idx2 * 2 + 1));
+            Vector2d c(V(idx3 * 2) , V(idx3 * 2 + 1));
+            Vector2d d(V(idx4 * 2) , V(idx4 * 2 + 1));
+
+            VectorXd p(8 , 1);
+            p << a(0) , a(1) , b(0) , b(1) ,c(0) , c(1) , d(0) , d(1) ;
+
+
+           int k = 0;
+            for(auto it : this->seg_line[i][j]){
+                Vector2d orp = Vector2d((it.second - it.first).x , (it.second - it.first).y);
+                auto w1 = inv_biliner(it.first , i , j);
+                auto w2 = inv_biliner(it.second , i , j);
+                Vector2d p1 = w1 * p;
+                Vector2d p2 = w2 * p;
+                auto P = p2 - p1;
+                double len1 = orp.transpose() * orp;
+                double len2 = P.transpose() * P;
+                //double cnt = (double)dot(p , orp) / (len1 * len2);
+                //cout<<cnt<<'\n';
+
+                double cnt = (P(0) * orp(0) + P(1) * orp(1)) / (len1 + len2);
+                double theta = acos(cnt);
+                cout<<"check::rotate " << ' ' << P(0) <<' '<< P(1)<<' '<<orp(0)<<' '<<orp(1)<< ' ' << theta / PI * 180 << '\n';
+                int B = this->allocate[i][j][k];
+                if((orp(0) * P(1) - orp(1) * P(0)) < 0){
+                    r[B] += theta;
+                }
+                else {
+                    r[B] -= theta;
+                }
+                num[B]++;
+
+                k++;
             }
         }
     }
-    //cout<<"p"<<' '<<num<<' '<<sum<<'\n';
+    for(int i = 0; i < 50 ; i++){
+        rotate[i] /= (double)num[i];
+    }
+    this->rotate = rotate;
+}
+
+SparseMatrix<double> globalwarp::Connect_mat(SparseMatrix<double> m1 , SparseMatrix<double> m2){
+    //cout<<m1.rows() <<' '<<m1.cols()<<' '<<m2.rows() <<' '<<m2.cols()<<'\n';
+
+    SparseMatrix<double> m(m1.rows() + m2.rows()  , m1.cols());
+    for (int k = 0; k < m1.outerSize(); ++k){
+        for (SparseMatrix<double>::InnerIterator it(m1, k); it; ++it){
+            m.insert(it.row(), it.col()) = it.value();
+        }
+    }
+    for (int k = 0; k < m2.outerSize(); ++k){
+        for (SparseMatrix<double>::InnerIterator it(m2, k); it; ++it){
+            m.insert(it.row() + m1.rows(), it.col()) = it.value();
+        }
+    }
+    m.makeCompressed();
+    return m;
 
 }
 
+void globalwarp::start_learn() {
+    const double lamada1 = 100;
+    const double lamada2 = 1e8;
+    double quad_num = (this->mordinate.size() - 1) * (this->mordinate[0].size() - 1);
+
+    SparseMatrix<double> pos = get_position_information();
+
+    SparseMatrix<double> shape_p = get_shape_preservation() * pos / (quad_num);
+
+    auto Bb = get_boundary_constraints();
+    SparseMatrix<double> bound_p = Bb.first * sqrt(lamada2);
+    SparseMatrix<double> line_p = lamada1 * get_line_preservation() * pos / ((double)this->seg_num) ;
+
+
+    cout<<"check::bound" << ' '<<bound_p.rows()<<' '<<bound_p.cols()<<'\n';
+    cout<<"check::shape "<<' '<<shape_p.rows() <<' '<<shape_p.cols()<<'\n';
+    cout<<"check::line" << ' '<<line_p.rows()<<' '<<line_p.cols()<<'\n';
+
+
+    VectorXd b = VectorXd::Zero(bound_p.rows() + shape_p.rows() + line_p.rows() , 1);
+    b.block(0 , 0 , Bb.second.rows() , 1) = (Bb.second * sqrt(lamada2)) ;
+
+    cout<<"check?"<<'\n';
+
+    SparseMatrix<double>k1 = Connect_mat(bound_p , shape_p);
+    SparseMatrix<double>k2 = Connect_mat(k1 , line_p);
+    cout<<"ok?"<<'\n';
+
+    auto k = k2;
+    for (int g = 0; g < k.outerSize(); ++g){
+        for (SparseMatrix<double>::InnerIterator it(k, g); it; ++it){
+            if(isnan(it.value())){
+                cout<<"value is nan"<<'\n';
+                cout<<it.row()<<'\n';
+
+                exit(0);
+
+            }
+          //  cout<<"check:val "<< it.value()<<'\n';
+
+        }
+    }
+    auto K = k.transpose() * k;
+
+    /*
+    cout<<"check::k transpose "<<k.transpose().rows()<<' '<<k.transpose().cols()<<'\n';
+    cout<<"check::b "<<' '<<b.rows()<<' '<<b.cols()<<'\n';
+    */
+
+    auto B = k.transpose() * b;
+
+    auto *solver = new SimplicialCholesky<SparseMatrix<double>>(K);
+    VectorXd V = solver->solve(B);
+
+    auto ans = k * V;
+    cout<<"ans:: "<<ans.rows() << ' ' << ans.cols() << ' ' << ans(0)<<'\n';
+
+    cout<<"finish?"<<'\n';
+
+    Mat pre = img.clone();
+
+    for(int i = 0 ; i < V.rows(); i += 2){
+        Point now((int)V(i + 1) , (int)V(i));
+        circle(pre , now , 2 , Scalar(0 , 0 ,255 ) , -1);
+
+    }
+    imshow("img" , pre);
+    waitKey(0);
+    //update_rotate(V);
+    //cout<<b.rows() <<' '<<b.cols()<<'\n';
+
+
+}
 
 void globalwarp::show(){
 

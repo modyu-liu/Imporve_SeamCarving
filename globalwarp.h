@@ -25,7 +25,8 @@ private:
     vector<pair<Point , Point>>line;
     vector<vector<vector<pair<Point , Point>>>>seg_line;
     vector<vector<vector<int>>>allocate;
-
+    vector<double>rotate;
+    int seg_num;
 
 
 public:
@@ -40,8 +41,12 @@ public:
     SparseMatrix<double> get_shape_preservation();
     MatrixXd inv_biliner(Point P ,  int x , int y);
     SparseMatrix<double> get_line_preservation();
-    bool in_line(Point x ,Point a , Point b);
-
+    pair<SparseMatrix<double> , VectorXd> get_boundary_constraints();
+    SparseMatrix<double> get_position_information();
+    void update_rotate(VectorXd &V);
+    SparseMatrix<double> Connect_mat(SparseMatrix<double> m1 , SparseMatrix<double> m2);
+    void start_learn();
+    bool in_line(Vector2d &p , Vector2d &a , Vector2d &b);
     void show();
 
 };
