@@ -26,27 +26,29 @@ private:
     vector<vector<vector<pair<Point , Point>>>>seg_line;
     vector<vector<vector<int>>>allocate;
     vector<double>rotate;
+    vector<vector<vector<pair<MatrixXd , MatrixXd>>>>seg_line_w;
+    vector<vector<Point>>ver;
+
     int seg_num;
 
 
 public:
     globalwarp(Mat img , vector<vector<Point>>mordinate);
     void get_line();
-    bool inmesh(Point s , int x ,int y);
-    Point get_intersection(Point a , Point b , Point c , Point d);
-    bool is_intersection(Point a , Point b , Point c , Point d);
+    bool inmesh(Point& s , int x ,int y);
+    Point get_intersection(Point& a , Point& b , Point& c , Point& d);
+    bool is_intersection(Point& a , Point& b , Point& c , Point& d);
     void mseg_line();
     void init_rotate();
     MatrixXd get_single_shape_preservation(int x ,int y);
     SparseMatrix<double> get_shape_preservation();
-    MatrixXd inv_biliner(Point P ,  int x , int y);
+    MatrixXd inv_biliner(Point& P ,  int x , int y);
     SparseMatrix<double> get_line_preservation();
     pair<SparseMatrix<double> , VectorXd> get_boundary_constraints();
     SparseMatrix<double> get_position_information();
-    void update_rotate(VectorXd &V);
-    SparseMatrix<double> Connect_mat(SparseMatrix<double> m1 , SparseMatrix<double> m2);
+    void update_rotate();
+    SparseMatrix<double> Connect_mat(SparseMatrix<double>& m1 , SparseMatrix<double>& m2);
     void start_learn();
     bool in_line(Vector2d &p , Vector2d &a , Vector2d &b);
-    void show();
-
+    vector<vector<Point>> get_ordinate();
 };

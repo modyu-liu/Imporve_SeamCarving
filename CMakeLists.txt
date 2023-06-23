@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.24)
 project(Imporve_SeamCarving)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 
 file(GLOB src "${PROJECT_SOURCE_DIR}/*.cpp")
 
-add_executable(SeamCarving ${src} )
+add_executable(SeamCarving ${src})
 
 # glad
 include_directories(./glad/include)
