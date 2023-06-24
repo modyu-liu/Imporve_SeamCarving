@@ -779,10 +779,10 @@ void globalwarp::update_rotate(){
             //cout<<"check::"<<a(0)<<' ' << a(1) <<' '<< b(0) <<' '<< b(1) <<' ' << c(0) <<' '<<  c(1) <<' '<< d(0) <<' '<< d(1)<<' ' <<'\n';
             VectorXd p(8 , 1);
             p << a(0) , a(1) , b(0) , b(1) ,c(0) , c(1) , d(0) , d(1);
-            cv::line(pre , Point(a(1) , a(0)) , Point(b(1) , b(0)) , Scalar(255 , 0 , 0) , 1);
-            cv::line(pre , Point(b(1) , b(0)) , Point(c(1) , c(0)) , Scalar(255 , 0 , 0) , 1);
-            cv::line(pre , Point(c(1) , c(0)) , Point(d(1) , d(0)) , Scalar(255 , 0 , 0) , 1);
-            cv::line(pre , Point(d(1) , d(0)) , Point(a(1) , a(0)) , Scalar(255 , 0 , 0) , 1);
+            //cv::line(pre , Point(a(1) , a(0)) , Point(b(1) , b(0)) , Scalar(255 , 0 , 0) , 1);
+            //cv::line(pre , Point(b(1) , b(0)) , Point(c(1) , c(0)) , Scalar(255 , 0 , 0) , 1);
+            //cv::line(pre , Point(c(1) , c(0)) , Point(d(1) , d(0)) , Scalar(255 , 0 , 0) , 1);
+            //cv::line(pre , Point(d(1) , d(0)) , Point(a(1) , a(0)) , Scalar(255 , 0 , 0) , 1);
 
             int k = 0;
            for(auto it : this->seg_line[i][j]){
@@ -796,7 +796,7 @@ void globalwarp::update_rotate(){
                 Vector2d p2 = w2 * p;
                 Vector2d P = p2 - p1;
                 double theta1 = atan2(orp(1) , orp(0));
-
+                /*
                 if(abs(P.norm() - orp.norm()) > 1){
                     Point a = this->mordinate[i][j];
                     Point b = this->mordinate[i][j + 1];
@@ -838,6 +838,7 @@ void globalwarp::update_rotate(){
                     waitKey(0);
 
                 }
+                 */
                double theta2 = atan2(P(1) , P(0));
 
                 double theta = theta2 - theta1 ;
@@ -863,6 +864,7 @@ void globalwarp::update_rotate(){
     }
     //imshow("img" , pre);
     //waitKey(0);
+    //cout<<"finish!"<<'\n'<<'\n';
 
     for(int i = 0; i < 50 ; i++){
         if(num[i] == 0)continue;
@@ -912,7 +914,7 @@ void globalwarp::start_learn() {
 
     cout<<(double)(end - start) / CLOCKS_PER_SEC << " s"<<'\n';
 
-    for(int i = 0; i < 6 ; i++) {
+    for(int i = 0; i < 10 ; i++) {
         start = clock();
         SparseMatrix<double> line_p = lamada1 * get_line_preservation() * pos / ((double)this->seg_num) ;
         end = clock();

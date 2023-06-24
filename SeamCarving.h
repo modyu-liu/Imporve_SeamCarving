@@ -30,6 +30,7 @@ public:
     void Rect_wrap();
     void irrect_wrap();
     void show();
+    double get_diff(int x1 , int y1 , int x2 , int y2);
     vector<vector<Point>> get_ordinate();
 
 };

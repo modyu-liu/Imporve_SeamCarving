@@ -14,6 +14,8 @@ const Vec3b LIGHTBLUE = Vec3b(255,255,160); //ProbBackground
 const Vec3b PINK = Vec3b(230,130,255); //ProbBackground
 const Vec3b RED = Vec3b(0,0,255); //color of Rectangle
 const Vec3b WHITE = Vec3b(255,255,255);
+const Vec3b BLACK = Vec3b(0 , 0 , 0);
+
 enum Side{
     TOP = 0 ,
     BOTTOM = 1,

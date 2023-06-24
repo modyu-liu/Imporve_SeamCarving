@@ -171,12 +171,25 @@ void display() {
     //GLFWwindow* window;
     glutSwapBuffers();
 }
+double shrinkImage(Mat src, Mat &dst) {
+    int pixel_numbers = src.rows * src.cols;
+    double scale = sqrt(pixel_numbers / 1000000.0);
+    resize(src, dst, Size(), 1 / scale, 1 / scale);
+    return scale;
+}
+
 int main(int argc, char* argv[]){
     //img = imread("2.png");
-    img = imread("1.jpg");
+    img = imread("1_input.jpg");
     //img = imread("10a_input.jpg");
     //clean_img(img);
+    Mat out_img;
+    double scale = shrinkImage(img , out_img);
+    img = out_img;
+
     Mat mask = clean(img);
+
+
     for(int i = 0; i < mask.rows ; i++){
         for(int j = 0 ; j < mask.cols ; j++){
             if(mask.at<uchar>(i , j) == 255){
@@ -229,39 +242,47 @@ int main(int argc, char* argv[]){
             }
             if(ok)right++;
         }
-        //imshow("img" , img);
-        //waitKey(0);
-        //Rect roi(1000 , 0 , 800 , 300);
-
         Rect roi(left , up , img.cols - left - right , img.rows - up - bottom);
         img = img(roi).clone();
         mask = mask(roi).clone();
-        //imshow("img" , subimg);
-        //waitKey(0);
-
     };
 
     prepare();
+    /*
+    Mat now = img.clone();
+    for(int i = 0 ; i < now.rows ; i++){
+        for(int j = 0; j < now.cols ; j++){
+            if(mask.at<uchar>(i , j) == BG){
+                now.at<Vec3b>(i , j) = BLACK;
+            }
+        }
+    }
+    imshow("img" , now);
+    waitKey(0);
+    */
 
     long time1 = getCurrentTime();
     SeamCarving seam(img , mask);
     long time2 = getCurrentTime();
-    cout<<"check::seamcarving : "<<time2 - time1<<"ms"<<'\n';
+    cout<<"check::seamcarving : "<<time2 - time1<<"ms "<<'\n';
 
     globalwarp globalwarp(img , seam.get_ordinate());
 
     time2 = getCurrentTime();
-    cout<<"check::global : "<<time2 - time1<<"ms"<<'\n';
+    cout<<"check::global : "<<time2 - time1<<" ms"<<'\n';
     co1 = seam.get_ordinate();
     co2 = globalwarp.get_ordinate();
+    time2 = getCurrentTime();
+    cout<<"check::sumtime : "<<time2 - time1<<" ms"<<'\n';
+
     /*
     Mat pre = img.clone();
-    for(int i = 0; i < co2.size() - 1 ; i ++){
-        for(int j = 0 ; j < co2[0].size() - 1 ; j++){
-            Point a = co2[i][j];
-            Point b = co2[i][j + 1];
-            Point c = co2[i + 1][j + 1];
-            Point d = co2[i + 1][j];
+    for(int i = 0; i < co1.size() - 1 ; i ++){
+        for(int j = 0 ; j < co1[0].size() - 1 ; j++){
+            Point a = co1[i][j];
+            Point b = co1[i][j + 1];
+            Point c = co1[i + 1][j + 1];
+            Point d = co1[i + 1][j];
             cv::line(pre , Point(a.y , a.x) , Point(b.y , b.x) , Scalar(255 , 0 , 0) , 1);
             cv::line(pre , Point(b.y , b.x) , Point(c.y , c.x) , Scalar(255 , 0 , 0) , 1);
             cv::line(pre , Point(c.y , c.x) , Point(d.y , d.x) , Scalar(255 , 0 , 0) , 1);
@@ -271,8 +292,8 @@ int main(int argc, char* argv[]){
     }
     imshow("img" , pre);
     waitKey(0);
-
     */
+
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
     glutInitWindowPosition(0, 0);
