@@ -11,14 +11,31 @@
 globalwarp::globalwarp(Mat img, vector<vector<Point>> mordinate) {
     this->img = img.clone();
     this->mordinate = mordinate;
-    this->seg_line = vector<vector<vector<pair<Point , Point>>>>(mordinate.size() - 1 , vector<vector<pair<Point , Point>>>(mordinate[0].size() - 1 , vector<pair<Point , Point>>()));
+    this->seg_line = vector<vector<vector<pair<Pointd , Pointd>>>>(mordinate.size() - 1 , vector<vector<pair<Pointd , Pointd>>>(mordinate[0].size() - 1 , vector<pair<Pointd , Pointd>>()));
     this->allocate = vector<vector<vector<int>>>(this->mordinate.size() - 1,  vector<vector<int>>(this->mordinate[0].size() - 1, vector<int>()));
     this->rotate = vector<double>(50 , 0);
     this->seg_line_w = vector<vector<vector<pair<MatrixXd , MatrixXd>>>>(mordinate.size() - 1 , vector<vector<pair<MatrixXd , MatrixXd>>>(mordinate[0].size() - 1 , vector<pair<MatrixXd , MatrixXd>>()));
     this->ver = vector<vector<Point>>(this->mordinate.size(), vector<Point>(this->mordinate[0].size()));
 
     this->seg_num = 0;
+    /*
+    Mat pre = img.clone();
+    for(int i = 0; i < this->mordinate.size() - 1 ; i++){
+        for(int j = 0 ;j < this->mordinate[0].size() - 1 ; j++){
+            Point a = this->mordinate[i][j];
+            Point b = this->mordinate[i][j + 1];
+            Point c = this->mordinate[i + 1][j + 1];
+            Point d = this->mordinate[i + 1][j];
+            cv::line(pre , Point(a.y , a.x) , Point(b.y , b.x) ,  Scalar(255 , 0 , 0) , 1);
+            cv::line(pre , Point(b.y , b.x) , Point(c.y , c.x) ,  Scalar(255 , 0 , 0) , 1);
+            cv::line(pre , Point(c.y , c.x) , Point(d.y , d.x) ,  Scalar(255 , 0 , 0) , 1);
+            cv::line(pre , Point(d.y , d.x) , Point(a.y , a.x) ,  Scalar(255 , 0 , 0) , 1);
 
+        }
+    }
+    imshow("img" , pre);
+    waitKey(0);
+    */
     clock_t start , end;
     start = clock();
     //get_shape_preservation();
@@ -114,65 +131,66 @@ void globalwarp::get_line() {
 
 
     for(int i = 0; i < n ; i++){
-        Point p1(line[i * 7 + 1] , line[i * 7 + 0]);
-        Point p2(line[i * 7 + 3] , line[i * 7 + 2]);
+        Pointd p1(line[i * 7 + 1] , line[i * 7 + 0]);
+        Pointd p2(line[i * 7 + 3] , line[i * 7 + 2]);
         this->line.emplace_back(make_pair(p1 , p2));
-    //        cv::line(img , Point(p1.y , p1.x) , Point(p2.y , p2.x) , Scalar(0 , 0 , 255) , 1 );
+        //cv::line(img , Point(p1.y , p1.x) , Point(p2.y , p2.x) , Scalar(0 , 0 , 255) , 1 );
     }
+    //imshow("img" , img);
+    //waitKey(0);
 
-
-    /*
-    Point p1(10 , 50);
-    Point p2(10 , 100);
-    cv::line(img , p1 , p2 , Scalar(255 , 0 , 0) , 5);
-    */
+    //cout<<"check::line"<<' '<<n<<'\n';
 
 }
-bool globalwarp::inmesh(Point& s , int x , int y){
-    Point a = this->mordinate[x][y];
-    Point b = this->mordinate[x][y + 1];
-    Point c = this->mordinate[x + 1][y + 1];
-    Point d = this->mordinate[x + 1][y];
+bool globalwarp::inmesh(Pointd& s , int x , int y){
+    Pointd a = Pointd(this->mordinate[x][y]);
+    Pointd b = Pointd(this->mordinate[x][y + 1]);
+    Pointd c = Pointd(this->mordinate[x + 1][y + 1]);
+    Pointd d = Pointd(this->mordinate[x + 1][y]);
+    //cout<<"check::"<<a.x<<' '<<a.y<<' '<< b.x<<' '<<b.y<<' '<< c.x<<' '<<c.y<<' '<< d.x<<' '<<d.y<<'\n';
+    //cout<<"check::"<<s.x<<' '<<s.y<<'\n';
+
     //
-    Point ab(b.x - a.x , b.y - a.y);
-    Point as(s.x - a.x , s.y - a.y);
-    int f1 = (ab.x * as.y - ab.y * as.x);
+    Pointd ab(b.x - a.x , b.y - a.y);
+    Pointd as(s.x - a.x , s.y - a.y);
 
-    Point bc(c.x - b.x , c.y - b.y);
-    Point bs(s.x - b.x , s.y - b.y);
-    int f2 = (bc.x * bs.y - bc.y * bs.x);
+    double f1 = (ab.x * as.y - ab.y * as.x);
 
-    Point cd(d.x - c.x , d.y - c.y);
-    Point cs(s.x - c.x , s.y - c.y);
-    int f3 = (cd.x * cs.y - cd.y * cs.x);
+    Pointd bc(c.x - b.x , c.y - b.y);
+    Pointd bs(s.x - b.x , s.y - b.y);
+    double f2 = (bc.x * bs.y - bc.y * bs.x);
 
-    Point da(a.x - d.x , a.y - d.y);
-    Point ds(s.x - d.x , s.y - d.y);
-    int f4 = (da.x * ds.y - da.y * ds.x);
+    Pointd cd(d.x - c.x , d.y - c.y);
+    Pointd cs(s.x - c.x , s.y - c.y);
+    double f3 = (cd.x * cs.y - cd.y * cs.x);
+
+    Pointd da(a.x - d.x , a.y - d.y);
+    Pointd ds(s.x - d.x , s.y - d.y);
+    double f4 = (da.x * ds.y - da.y * ds.x);
     // in fact 只需要满足全部小于0即可
-    if(f1 <= 0 && f2<= 0 && f3 <= 0 && f4 <= 0){
+    if(f1 <= 0 && f2 <= 0 && f3 <= 0 && f4 <= 0){
         return true;
     }
     else {
         return false;
     }
 }
-bool globalwarp::is_intersection(Point& a , Point& b , Point& c , Point& d){
+bool globalwarp::is_intersection(Pointd& a , Pointd& b , Pointd& c , Pointd& d){
 
 
-    Point ab = (b - a);
-    Point cd = (d - c);
+    Pointd ab = (b - a);
+    Pointd cd = (d - c);
 
-    Point ac = (c - a);
-    Point ad = (d - a);
+    Pointd ac = (c - a);
+    Pointd ad = (d - a);
 
-    Point ca = (a - c);
-    Point cb = (b - c);
+    Pointd ca = (a - c);
+    Pointd cb = (b - c);
 
-    int res1 = ab.x * ac.y - ab.y * ac.x;
-    int res2 = ab.x * ad.y - ab.y * ad.x;
-    int res3 = cd.x * ca.y - cd.y * ca.x;
-    int res4 = cd.x * cb.y - cd.y * cb.x;
+    double res1 = ab.x * ac.y - ab.y * ac.x;
+    double res2 = ab.x * ad.y - ab.y * ad.x;
+    double res3 = cd.x * ca.y - cd.y * ca.x;
+    double res4 = cd.x * cb.y - cd.y * cb.x;
 
     if(res1 * res2 <= 0 && res3 * res4 <= 0){
         return true;
@@ -182,25 +200,62 @@ bool globalwarp::is_intersection(Point& a , Point& b , Point& c , Point& d){
     }
 }
 
-Point globalwarp::get_intersection(Point& a , Point& b , Point& c , Point& d){
+Pointd globalwarp::get_intersection(Pointd& a , Pointd& b , Pointd& c , Pointd& d){
 
-    Point A = (a - c);
-    Point B = (d - c);
-    Point C = (b - c);
-    Point D = (d - b);
+    Pointd A(a.x - c.x , a.y - c.y) ;
+    Pointd B(d.x - c.x , d.y - c.y) ;
+    Pointd C(b.x - c.x , b.y - c.y) ;
+    Pointd D(d.x - b.x , d.y - b.y) ;
     double d1 = abs(A.x * B.y - A.y * B.x);
     double d2 = abs(C.x * D.y - C.y * D.x);
-//    cout<<"find::"<<' '<<d1<<' '<<d2<<'\n';
-
     double t = d1 / (d1 + d2);
-//    cout<<"ok?"<<t<<'\n';
+    double x = a.x + (double)(b.x - a.x) * t;
+    double y = a.y + (double)(b.y - a.y) * t;
 
-    Point ans = a + (b - a) * t;
-
+    Pointd ans(x , y);
 //    cout<<ans.x<<' '<<ans.y<<'\n';
     return ans;
 
 }
+
+Pointd globalwarp::modify_line(Pointd &s, int i, int j) {
+    int x = int(s.x);
+    int y = int(s.y);
+    Pointd p1 = Pointd(x + 1 , y);
+    Pointd p2 = Pointd(x , y + 1);
+    Pointd p3 = Pointd(x - 1 , y);
+    Pointd p4 = Pointd(x , y - 1);
+    Pointd p5 = Pointd(x - 1 , y - 1);
+    Pointd p6 = Pointd(x + 1 , y + 1);
+
+    if(inmesh(p1 , i , j)){
+        return p1;
+    }
+    else if(inmesh(p2 , i , j)){
+        return p2;
+    }
+    else if(inmesh(p3 , i , j)){
+        return p3;
+    }
+    else if(inmesh(p4 , i , j)){
+        return p4;
+    }
+    else if(inmesh(p5 , i , j)){
+        return p5;
+    }
+    else if(inmesh(p6 , i , j)){
+        return p6;
+    }
+    else {
+        cout<<"have some bug!"<<'\n';
+        cout<<s.x<<' '<<s.y<<'\n';
+
+        exit(0);
+
+    }
+
+}
+
 void globalwarp::mseg_line() {
     int num = 0;
     //cout<<"check line size "<<' '<<this->line.size()<<'\n';
@@ -210,48 +265,66 @@ void globalwarp::mseg_line() {
     for(auto it : this->line) {
         for (int i = 0; i < this->mordinate.size() - 1; i++) {
             for (int j = 0; j < this->mordinate[i].size() - 1; j++) {
-                //for (auto it: this->line) {
-                vector <Point> pre;
-                //cout<<"start!"<<'\n';
+                vector <Pointd> pre;
+                /*
+                Mat pr = img.clone();
+                Point a = this->mordinate[i][j];
+                Point b = this->mordinate[i][j + 1];
+                Point c = this->mordinate[i + 1][j + 1];
+                Point d = this->mordinate[i + 1][j];
+                cv::line(pr , Point(a.y , a.x) , Point(b.y , b.x) ,  Scalar(255 , 0 , 0) , 1);
+                cv::line(pr , Point(b.y , b.x) , Point(c.y , c.x) ,  Scalar(255 , 0 , 0) , 1);
+                cv::line(pr , Point(c.y , c.x) , Point(d.y , d.x) ,  Scalar(255 , 0 , 0) , 1);
+                cv::line(pr , Point(d.y , d.x) , Point(a.y , a.x) ,  Scalar(255 , 0 , 0) , 1);
+                cv::line(pr , Point(it.first.y , it.first.x) , Point(it.second.y , it.second.x) , Scalar(0 , 255 , 0) , 1);
+                cout<<"show 1"<<'\n';
+                */
+                //imshow("img" , pr);
 
+                //waitKey(0);
+                bool ok = 0;
                 if (inmesh(it.first, i, j)) {
-                  //  cout<<"error 1 !"<<'\n';
                     pre.emplace_back(it.first);
+                    //cout<<"ok1"<<'\n';
+                    //ok = 1;
                 }
                 if (inmesh(it.second, i, j)) {
-                   // cout<<"error 2 !"<<'\n';
                     pre.emplace_back(it.second);
+                    //cout<<"ok2"<<'\n';
+                    //ok = 1;
                 }
                 if(pre.size() < 2) {
-                    Point a = this->mordinate[i][j];
-                    Point b = this->mordinate[i][j + 1];
-                    Point c = this->mordinate[i + 1][j + 1];
-                    Point d = this->mordinate[i + 1][j];
-
-                    if (is_intersection(a, b, it.first, it.second)) {
-                        Point sec = get_intersection(a, b, it.first, it.second);
+                    Pointd a = Pointd(this->mordinate[i][j]);
+                    Pointd b = Pointd(this->mordinate[i][j + 1]);
+                    Pointd c = Pointd(this->mordinate[i + 1][j + 1]);
+                    Pointd d = Pointd(this->mordinate[i + 1][j]);
+                    //vector<Pointd>res;
+                    Pointd sec;
+                    if (is_intersection(a, b, it.first, it.second ) ) {
+                        sec = get_intersection(a, b, it.first, it.second);
                         pre.emplace_back(sec);
                     }
                     if (is_intersection(b, c, it.first, it.second)) {
-                        Point sec = get_intersection(b, c, it.first, it.second);
+                        sec = get_intersection(b, c, it.first, it.second);
                         pre.emplace_back(sec);
                     }
                     if (is_intersection(c, d, it.first, it.second)) {
-                        Point sec = get_intersection(c, d, it.first, it.second);
+                        sec = get_intersection(c, d, it.first, it.second);
                         pre.emplace_back(sec);
                     }
                     if (is_intersection(d, a, it.first, it.second)) {
-                        Point sec = get_intersection(d, a, it.first, it.second);
+                        sec = get_intersection(d, a, it.first, it.second);
                         pre.emplace_back(sec);
                     }
+
                     if (pre.size() < 2)continue;
                     if (pre.size() > 2) {
-                        vector <Point> cnt;
+                        vector <Pointd> cnt;
                         for (int i = 0; i < pre.size(); i++) {
                             for (int j = i + 1; j < pre.size(); j++) {
                                 auto now = pre[j] - pre[i];
-                                if (now.x * now.x + now.y * now.y > 2) {
-                                    cnt = vector < Point > {pre[i], pre[j]};
+                                if (now.x * now.x + now.y * now.y >= 4) {
+                                    cnt = vector<Pointd>{pre[i], pre[j]};
                                 }
                             }
                         }
@@ -259,57 +332,98 @@ void globalwarp::mseg_line() {
                     }
                     if (pre.size() < 2)continue;
 
-                    for (int k = 0; k < 9; k++) {
-                        int x = pre[0].x + f1[k];
-                        int y = pre[0].y + f2[k];
-                        Point p(x, y);
-                        if (inmesh(p, i, j)) {
-                            pre[0].x = x;
-                            pre[0].y = y;
-                            break;
-                        }
-                    }
-                    for (int k = 0; k < 9; k++) {
-                        int x = pre[1].x + f1[k];
-                        int y = pre[1].y + f2[k];
-                        Point p(x, y);
-
-                        if (inmesh(p, i, j)) {
-                            pre[1].x = x;
-                            pre[1].y = y;
-                            break;
-                        }
-                    }
                 }
-                Point res = pre[1] - pre[0];
+                //cout<<"ok!"<<'\n';
+
+                Pointd res = pre[1] - pre[0];
+                num++;
+                //cv::line(pr , Point(pre[0].y , pre[0].x) , Point(pre[1].y , pre[1].x) , Scalar(0 , 255 , 0) , 1);
+                //cout<<"show 2"<<'\n';
+                //imshow("img" , pr);
+                //waitKey(0);
                 if (res.x * res.x + res.y * res.y < 4) {
                     continue;
                 }
 
+                if(!inmesh(pre[0] , i , j)){
+                    pre[0] = modify_line(pre[0] , i , j);
+                }
+                if(!inmesh(pre[1] , i , j)){
+                    pre[1] = modify_line(pre[1] , i , j);
+                }
+
                 auto w1 = inv_biliner(pre[0] , i , j);
                 auto w2 = inv_biliner(pre[1] , i , j);
-                this->seg_line_w[i][j].emplace_back(make_pair(w1 , w2));
+                /*
+                Pointd a = Pointd(this->mordinate[i][j]);
+                Pointd b = Pointd(this->mordinate[i][j + 1]);
+                Pointd c = Pointd(this->mordinate[i + 1][j + 1]);
+                Pointd d = Pointd(this->mordinate[i + 1][j]);
 
+                MatrixXd p(8 , 1);
+                p << a.x , a.y , b.x , b.y , c.x , c.y , d.x , d.y;
+
+                auto s1 = w1 * p ;
+                auto s2 = w2 * p;
+
+                Vector2d p1(pre[0].x , pre[0].y);
+                Vector2d p2(pre[1].x , pre[1].y);
+
+                auto c1 = s1 - p1;
+                if((c1(0) * c1(0) + c1(1) * c1(1)) > 0.0001){
+                    cout<<"maybe error 1 !"<<'\n';
+                }
+                auto c2 = s2 - p2;
+                if((c2(0) * c2(0) + c2(1) * c2(1)) > 0.0001){
+                    cout<<"maybe error! 2 "<<'\n';
+                }
+                */
+                this->seg_line_w[i][j].emplace_back(make_pair(w1 , w2));
                 this->seg_line[i][j].emplace_back(make_pair(pre[0], pre[1]));
                 this->seg_num++;
 
             }
         }
     }
-    //cout<<"find::seg_num "<<seg_num<<'\n';
 
+
+    /*
+    Mat pre = img.clone();
+    for(int i = 0; i < this->mordinate.size() - 1 ; i++){
+        for(int j = 0; j < this->mordinate[0].size() - 1 ; j++){
+            auto a = this->mordinate[i][j];
+            auto b = this->mordinate[i][j + 1];
+            auto c = this->mordinate[i + 1][j + 1];
+            auto d = this->mordinate[i + 1][j];
+            cv::line(pre , Point(a.y , a.x) , Point(b.y , b.x) , Scalar(255 , 0 , 0) , 1);
+            cv::line(pre , Point(b.y , b.x) , Point(c.y , c.x) , Scalar(255 , 0 , 0) , 1);
+            cv::line(pre , Point(c.y , c.x) , Point(d.y , d.x) , Scalar(255 , 0 , 0) , 1);
+            cv::line(pre , Point(d.y , d.x) , Point(a.y , a.x) , Scalar(255 , 0 , 0) , 1);
+            if(this->seg_line[i][j].size() == 0)continue;
+            int num = 0;
+            for(auto it : this->seg_line[i][j]){
+                cv::line(pre , Point(it.first.y , it.first.x) , Point(it.second.y , it.second.x) , Scalar(0 , 255 , 0) , 1);
+                num++;
+            }
+         }
+    }
+
+    imshow("img" , pre);
+    waitKey(0);
+    cout<<"find::seg_num "<<seg_num<<'\n';
+    */
     //cout<<num<<'\n';
 
 
 }
 void globalwarp::init_rotate(){
-    vector<vector<pair<Point , Point>>>Bin(50 , vector<pair<Point , Point>>());
+    vector<vector<pair<Pointd , Pointd>>>Bin(50 , vector<pair<Pointd , Pointd>>());
     for(int i = 0; i < this->mordinate.size() - 1 ; i++){
         for(int j = 0 ; j < this->mordinate[0].size() - 1 ; j++){
             vector<int>pre;
             for(int k = 0 ; k < this->seg_line[i][j].size() ; k++){
                 //cout<<"find::"<<i<<' '<<j<<' '<<k<<'\n';
-                Point L = seg_line[i][j][k].second - seg_line[i][j][k].first;
+                Pointd L = seg_line[i][j][k].second - seg_line[i][j][k].first;
                 //cout<<"ok??"<<'\n';
                 if(L.y < 0){
                     L.x = -L.x;
@@ -353,11 +467,14 @@ void globalwarp::init_rotate(){
 bool globalwarp::in_line(Vector2d &p, Vector2d &a, Vector2d &b) {
     Vector2d ab = b - a;
     Vector2d ap = p - a;
-    if((ab(0) * ap(1) - ab(1) * ap(0)) == 0)return true;
+    //cout<<"check in line" << p(0)<< ' ' <<p(1)<<' '<<a(0)<<' '<<a(1)<<' '<<b(0)<<' '<<b(1)<<'\n';
+    //cout<<".norm() "<<ab.norm() <<' '<<ap.norm()<<'\n';
+    //cout<<ab(0)<<' '<<ab(1)<<' '<<ap(0)<<' '<<ap(1)<<'\n';
+    if(abs((ab(0) * ap(1) - ab(1) * ap(0))) <= 1e-8 && ab.norm() > ap.norm())return true;
     else return false;
 }
 //逆双线性差值推导 https://www.cnblogs.com/lipoicyclic/p/16338901.html
-MatrixXd globalwarp::inv_biliner(Point& P , int x, int y) {
+MatrixXd globalwarp::inv_biliner(Pointd& P , int x, int y) {
     Point A = this->mordinate[x][y];
     Point B = this->mordinate[x][y + 1];
     Point C = this->mordinate[x + 1][y + 1];
@@ -368,7 +485,9 @@ MatrixXd globalwarp::inv_biliner(Point& P , int x, int y) {
     Vector2d c(C.x , C.y);
     Vector2d d(D.x , D.y);
     double w1 , w2 , w3 , w4;
+    int way = 0;
     if(in_line( p , a , b)){
+        way = 1;
         double u;
         if((b - a)(0) != 0) {
             u = (p - a)(0) / (b - a)(0);
@@ -376,12 +495,25 @@ MatrixXd globalwarp::inv_biliner(Point& P , int x, int y) {
         else {
             u = (p - a)(1) / (b - a)(1);
         }
+        if(u > 1){
+            cout<<"in this wa"<<'\n';
+
+            cout<<(p - a)(0)<<' '<<(b - a)(0)<<'\n';
+            cout<<p(0)<<' '<<p(1)<<' '<<a(0)<<' '<<a(1)<<' '<<b(0)<<' '<<b(1)<<'\n';
+
+            cout<<"check::"<<A.x<<' '<<A.y<<' '<<B.x<<' '<<B.y<<' '<<C.x<<' '<<C.y<<' '<<D.x<<' '<<D.y<<'\n';
+            cout<<"po::"<<P.x<<' '<<P.y<<'\n';
+
+            cout<<"error in inv_bi!"<<'\n';
+            exit(0);
+        }
         w1 = 1 - u;
         w2 = u;
         w3 = 0;
         w4 = 0;
     }
     else if(in_line(p , b , c)){
+        way = 2;
         double u;
         if((c - b)(0) != 0) {
             u = (p - b)(0) / (c - b)(0);
@@ -395,6 +527,7 @@ MatrixXd globalwarp::inv_biliner(Point& P , int x, int y) {
         w4 = 0;
     }
     else if(in_line(p , c , d)){
+        way = 3;
         double u;
         if((d - c)(0) != 0) {
             u = (p - c)(0) / (d - c)(0);
@@ -408,8 +541,8 @@ MatrixXd globalwarp::inv_biliner(Point& P , int x, int y) {
         w4 = u;
     }
     else if(in_line(p , d , a)){
+        way = 4;
         double u;
-
         if((a - d)(0) != 0) {
             u = (p - d)(0) / (a - d)(0);
         }
@@ -422,6 +555,7 @@ MatrixXd globalwarp::inv_biliner(Point& P , int x, int y) {
         w4 = 1 - u;
     }
     else {
+        way = 5;
         Vector2d e = b - a;
         Vector2d f = d - a;
         Vector2d g = a - b + c - d;
@@ -433,14 +567,11 @@ MatrixXd globalwarp::inv_biliner(Point& P , int x, int y) {
         double k1 = cross2d(e, f) + cross2d(h, g);
         double k0 = cross2d(h, e);
         double u, v;
-        int flag = 0;
+        int flag = 0 ;
+
+        bool ppp = 0;
         if (abs(k2) < 0.001) {
-            /*
-            if((e(1) * k1 - g(1) * k0) == 0 && (e(0) * k1 - g(0) * k0) == 0){
-                cout<<"error !"<<'\n';
-                exit(0);
-            }
-            */
+            flag = 1;
             if((e(0) * k1 - g(0) * k0) == 0){
                 u = (h(1) * k1 + f(1) * k0) / (e(1) * k1 - g(1) * k0);
             }
@@ -450,8 +581,8 @@ MatrixXd globalwarp::inv_biliner(Point& P , int x, int y) {
             v = -k0 / k1;
         }
         else {
+            flag = 2;
             double w = k1 * k1 - 4.0 * k0 * k2;
-
             if (w < 0.0) {
                 cout << "no solution!" << '\n';
                 exit(0);
@@ -460,80 +591,61 @@ MatrixXd globalwarp::inv_biliner(Point& P , int x, int y) {
             double ik2 = 0.5 / k2;
             v = (-k1 - w) * ik2;
             if((e(1) + g(1) * v) == 0 && (e(0) + g(0) * v) == 0){
-                //cout<<"error ! in this!"<<'\n';
                 exit(0);
             }
-
             if((e(0) + g(0) * v) == 0){
-                //cout<<"check::"<<(e(1) + g(1) * v)<<'\n';
                 u = (h(1) - f(1) * v) / (e(1) + g(1) * v);
             }
             else {
-
-                //cout<<"check::"<<(e(0) + g(0) * v)<<'\n';
-                //cout<<"ok??"<<e(0)<<' '<<g(0)<<' '<<v<<'\n';
-
                 u = (h(0) - f(0) * v) / (e(0) + g(0) * v);
             }
-            /*
-            if((e(0) + g(0) * v) == 0){
-                cout<<e(0) <<' '<<g(0)<<' '<<v<<'\n';
-                cout<<e(1) <<' '<<g(1)<<' '<<v<<'\n';
-
-                cout<<"wa wa wa"<<'\n';
-                exit(0);
-
-            }
-             */
             if (u < 0.0 || u > 1.0 || v < 0.0 || v > 1.0) {
+                ppp = 1;
                 v = (-k1 + w) * ik2;
                 if((e(0) + g(0) * v) == 0 && (e(1) + g(1) * v) == 0){
                     cout<<"error in change !"<<'\n';
                     exit(0);
-
                 }
+
                 if((e(0) + g(0) * v) != 0) {
                     u = (h(0) - f(0) * v) / (e(0) + g(0) * v);
                 }
                 else {
                     u = (h(1) - f(1) * v) / (e(1) + g(1) * v);
-
                 }
             }
         }
-        /*
-        auto xx = a + (b - a) * u + (d - a) * v + (a - b + c - d) * u * v;
-        double dis = (xx(0) - p(0)) * (xx(0) - p(0)) + (xx(1) - p(1)) * (xx(1) - p(1));
-        dis = sqrt(dis);
-        if(dis > 0.1){
-            if(flag == 1){
-                cout<<"wa in pa"<<'\n';
-            }
-            else {
-                cout<<"wa in se"<<'\n';
-            }
-            cout<<"dis long "<< dis<<'\n';
+        if(u > 1 || v > 1){
+            cout<<u<<' '<<v<< ' ' << flag << ' ' << ppp << '\n';
+            cout<<"check::"<<A.x<<' '<<A.y<<' '<<B.x<<' '<<B.y<<' '<<C.x<<' '<<C.y<<' '<<D.x<<' '<<D.y<<'\n';
+            cout<<"po::"<<P.x<<' '<<P.y<<'\n';
+
+            cout<<"error in inv_bi!"<<'\n';
+            exit(0);
+
         }
-        */
         w1 = 1 - u - v + u * v;
         w2 = u - u * v;
         w3 = u * v;
         w4 = v - u * v;
-        /*
-        if(isnan(w1) ||isnan(w2) || isnan(w3) || isnan(w4)  ){
-            cout<<u<<' '<<v<<'\n';
 
-            cout<<"nan in w "<<'\n';
-            exit(0);
-
-        }
-         */
     }
+    if(isnan(w1) ||isnan(w2) || isnan(w3) || isnan(w4)  ){
+        //cout<<u<<' '<<v<<'\n';
+        cout<<"nan in w "<<'\n';
+        exit(0);
+    }
+    if(abs(w1) < 1e-9)w1 = 0;
+    if(abs(w2) < 1e-9)w2 = 0;
+    if(abs(w3) < 1e-9)w3 = 0;
+    if(abs(w4) < 1e-9)w4 = 0;
+
     MatrixXd w(2, 8);
     w << w1, 0, w2, 0, w3, 0, w4, 0,
             0, w1, 0, w2, 0, w3, 0, w4;
     return w;
 }
+
 SparseMatrix<double> globalwarp::get_line_preservation() {
 
     SparseMatrix<double> line_pre(2 * this->seg_num , 8 * (this->mordinate.size() - 1) * (this->mordinate[0].size() - 1));
@@ -542,9 +654,22 @@ SparseMatrix<double> globalwarp::get_line_preservation() {
     for(int i = 0; i < this->mordinate.size() - 1 ; i ++){
         for(int j = 0 ; j < this->mordinate[0].size() - 1 ; j++){
             for(int k = 0; k < this->seg_line[i][j].size() ; k++) {
-                pair<Point , Point> it = this->seg_line[i][j][k];
+                pair<Pointd , Pointd> it = this->seg_line[i][j][k];
                 MatrixXd w1 = this->seg_line_w[i][j][k].first;
                 MatrixXd w2 = this->seg_line_w[i][j][k].second;
+
+                /*
+                Point a = this->mordinate[i][j];
+                Point b = this->mordinate[i][j + 1];
+                Point c = this->mordinate[i + 1][j + 1];
+                Point d = this->mordinate[i + 1][j];
+                MatrixXd po(8 , 1);
+                po << a.x , a.y , b.x , b.y ,c.x , c.y , d.x ,d.y;
+                auto p1 = w1 * po;
+                auto p2 = w2 * po;
+                auto np = p2 - p1;
+                */
+
                 int B = this->allocate[i][j][k];
                 double theta = this->rotate[B];
                 MatrixXd R(2 , 2);
@@ -642,62 +767,108 @@ void globalwarp::update_rotate(){
     }
     for(int i = 0; i < this->mordinate.size() - 1; i ++){
         for(int j = 0; j < this->mordinate[0].size() - 1 ; j++){
-            int idx1 = (i * this->mordinate[0].size()) + j;
-            int idx2 = idx1 + 1;
-            int idx3 = idx2 + this->mordinate[0].size();
-            int idx4 = idx1 + this->mordinate[0].size();
+
+            Mat pre = img.clone();
 
             Vector2d a(this->ver[i][j].x , this->ver[i][j].y);
             Vector2d b(this->ver[i][j + 1].x , this->ver[i][j + 1].y);
             Vector2d c(this->ver[i + 1][j + 1].x , this->ver[i + 1][j + 1].y);
             Vector2d d(this->ver[i + 1][j].x , this->ver[i + 1][j].y);
 
+
+            //cout<<"check::"<<a(0)<<' ' << a(1) <<' '<< b(0) <<' '<< b(1) <<' ' << c(0) <<' '<<  c(1) <<' '<< d(0) <<' '<< d(1)<<' ' <<'\n';
             VectorXd p(8 , 1);
             p << a(0) , a(1) , b(0) , b(1) ,c(0) , c(1) , d(0) , d(1);
+            cv::line(pre , Point(a(1) , a(0)) , Point(b(1) , b(0)) , Scalar(255 , 0 , 0) , 1);
+            cv::line(pre , Point(b(1) , b(0)) , Point(c(1) , c(0)) , Scalar(255 , 0 , 0) , 1);
+            cv::line(pre , Point(c(1) , c(0)) , Point(d(1) , d(0)) , Scalar(255 , 0 , 0) , 1);
+            cv::line(pre , Point(d(1) , d(0)) , Point(a(1) , a(0)) , Scalar(255 , 0 , 0) , 1);
 
-           int k = 0;
+            int k = 0;
            for(auto it : this->seg_line[i][j]){
                 Vector2d orp = Vector2d((it.second - it.first).x , (it.second - it.first).y);
 
                 MatrixXd w1 = this->seg_line_w[i][j][k].first;
                 MatrixXd w2 = this->seg_line_w[i][j][k].second;
 
+
                 Vector2d p1 = w1 * p;
                 Vector2d p2 = w2 * p;
                 Vector2d P = p2 - p1;
-                double len1 = sqrt(orp.transpose() * orp);
+                double theta1 = atan2(orp(1) , orp(0));
 
-                double len2 = sqrt(P.transpose() * P);
-                //double cnt = (double)dot(p , orp) / (len1 * len2);
-                //cout<<cnt<<'\n';
-               //cout<<"check::len "<<len1<<' '<<len2<<'\n';
-                double cnt = (P(0) * orp(0) + P(1) * orp(1)) / (len1 * len2);
-                //cout<<"cnt "<<' '<<cnt<<'\n';
+                if(abs(P.norm() - orp.norm()) > 1){
+                    Point a = this->mordinate[i][j];
+                    Point b = this->mordinate[i][j + 1];
+                    Point c = this->mordinate[i + 1][j + 1];
+                    Point d = this->mordinate[i + 1][j];
 
-                //cout<<"f"
-                //cout<<"find::"<<cnt<<'\n';
-                if(abs(cnt - 1) < 1e-6){
-                    cnt = 1;
+                    cv::line(pre , Point(a.y , a.x) , Point(b.y , b.x) , Scalar(255 , 0 , 0) , 1);
+                    cv::line(pre , Point(b.y , b.x) , Point(c.y , c.x) , Scalar(255 , 0 , 0) , 1);
+                    cv::line(pre , Point(c.y , c.x) , Point(d.y , d.x) , Scalar(255 , 0 , 0) , 1);
+                    cv::line(pre , Point(d.y , d.x) , Point(a.y , a.x) , Scalar(255 , 0 , 0) , 1);
+
+                    cv::line(pre , Point(it.first.y , it.first.x) , Point(it.second.y , it.second.x) , Scalar(0 , 255, 0) , 1);
+                    cv::line(pre , Point(p1(1) , p1(0)) , Point(p2(1) , p2(0)) , Scalar(0 , 0, 255) , 1);
+                    cout<<"w1!"<<'\n';
+                    for(int i = 0 ; i < 2 ; i ++){
+                        for(int j = 0 ; j < 8 ; j++){
+                            cout<<w1(i , j)<<' ';
+                        }
+                        cout<<'\n';
+                    }
+                    cout<<"w2!"<<'\n';
+                    for(int i = 0 ; i < 2 ; i ++){
+                        for(int j = 0 ; j < 8 ; j++){
+                            cout<<w2(i , j)<<' ';
+                        }
+                        cout<<'\n';
+                    }
+                    cout<<"ver"<<'\n';
+                    for(int i = 0; i < 8 ;i++){
+                        cout<<p(i)<<' ';
+                    }
+                    cout<<'\n';
+                    cout<<"org"<<'\n';
+                    cout<<it.first.x<<' '<<it.first.y<<' '<<it.second.x<<' '<<it.second.y<<'\n';
+                    cout<<"new"<<'\n';
+                    cout<<p1(0)<<' '<<p1(1)<<' '<<p2(0)<<' '<<p2(1)<<'\n';
+
+                    imshow("img" , pre);
+                    waitKey(0);
+
                 }
-                double theta = acos(abs(cnt));
+               double theta2 = atan2(P(1) , P(0));
 
-                //cout<<"check::rotate " << ' ' << P(0) <<' '<< P(1)<<' '<<orp(0)<<' '<<orp(1)<< ' ' << theta / PI * 180 << '\n';
+                double theta = theta2 - theta1 ;
+                if(theta > PI || theta < -PI){
+                    if(theta > PI){
+                        theta -= 2 * PI;
+                    }
+                    else {
+                        theta += 2 * PI;
+                    }
+                }
                 int B = this->allocate[i][j][k];
-                if((orp(0) * P(1) - orp(1) * P(0)) < 0){
-                    this->rotate[B] += theta;
-                }
-                else {
-                    this->rotate[B] -= theta;
-                }
+                this->rotate[B] += theta;
+
                 num[B]++;
 
                 k++;
            }
+           //imshow("img" , pre);
+           //waitKey(0);
+
         }
     }
+    //imshow("img" , pre);
+    //waitKey(0);
+
     for(int i = 0; i < 50 ; i++){
         if(num[i] == 0)continue;
         this->rotate[i] /= (double)num[i];
+        //cout<<"ok?? "<<this->rotate[i]<<'\n';
+
         if(isnan(this->rotate[i]) ) {
             cout << "check::" << this->rotate[i] << '\n';
         }
@@ -741,7 +912,7 @@ void globalwarp::start_learn() {
 
     cout<<(double)(end - start) / CLOCKS_PER_SEC << " s"<<'\n';
 
-    for(int i = 0; i < 10 ; i++) {
+    for(int i = 0; i < 6 ; i++) {
         start = clock();
         SparseMatrix<double> line_p = lamada1 * get_line_preservation() * pos / ((double)this->seg_num) ;
         end = clock();
@@ -767,8 +938,25 @@ void globalwarp::start_learn() {
                 //circle(pre , Point(V(2 * idx + 1) , V(2 * idx) ) , 2 , Scalar(255 , 0 , 0) , -1);
 
             }
-
         }
+        /*
+        Mat pre = img.clone();
+        for(int i = 0; i < this->mordinate.size() - 1 ; i++){
+            for(int j = 0 ; j < this->mordinate[0].size() - 1 ; j++){
+                Point a = this->ver[i][j];
+                Point b = this->ver[i][j + 1];
+                Point c = this->ver[i + 1][j + 1];
+                Point d = this->ver[i + 1][j];
+                cv::line(pre , Point(a.y , a.x) , Point(b.y , b.x) , Scalar(255 , 0 ,0 ), 1);
+                cv::line(pre , Point(b.y , b.x) , Point(c.y , c.x) , Scalar(255 , 0 ,0 ), 1);
+                cv::line(pre , Point(c.y , c.x) , Point(d.y , d.x) , Scalar(255 , 0 ,0 ), 1);
+                cv::line(pre , Point(d.y , d.x) , Point(a.y , a.x) , Scalar(255 , 0 ,0 ), 1);
+
+            }
+        }
+        imshow("img" , pre);
+        waitKey(0);
+        */
         /*
         cout<<"this is "<< i <<'\n';
 

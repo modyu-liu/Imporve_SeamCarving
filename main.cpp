@@ -123,7 +123,7 @@ void display() {
             int index = row * vertexCol + col;
             PDD d_coord = {co2[row][col].x, co2[row][col].y};
             PDD d_localcoord = {co1[row][col].x, co1[row][col].y};
-            cout<<"check::"<<d_coord.first<<' '<<d_coord.second<<' '<<d_localcoord.first<<' '<<d_localcoord.second<<'\n';
+            //cout<<"check::"<<d_coord.first<<' '<<d_coord.second<<' '<<d_localcoord.first<<' '<<d_localcoord.second<<'\n';
 
             d_coord.first /= img.rows;
             d_coord.second /= img.cols;
@@ -254,7 +254,25 @@ int main(int argc, char* argv[]){
     cout<<"check::global : "<<time2 - time1<<"ms"<<'\n';
     co1 = seam.get_ordinate();
     co2 = globalwarp.get_ordinate();
+    /*
+    Mat pre = img.clone();
+    for(int i = 0; i < co2.size() - 1 ; i ++){
+        for(int j = 0 ; j < co2[0].size() - 1 ; j++){
+            Point a = co2[i][j];
+            Point b = co2[i][j + 1];
+            Point c = co2[i + 1][j + 1];
+            Point d = co2[i + 1][j];
+            cv::line(pre , Point(a.y , a.x) , Point(b.y , b.x) , Scalar(255 , 0 , 0) , 1);
+            cv::line(pre , Point(b.y , b.x) , Point(c.y , c.x) , Scalar(255 , 0 , 0) , 1);
+            cv::line(pre , Point(c.y , c.x) , Point(d.y , d.x) , Scalar(255 , 0 , 0) , 1);
+            cv::line(pre , Point(d.y , d.x) , Point(a.y , a.x) , Scalar(255 , 0 , 0) , 1);
 
+        }
+    }
+    imshow("img" , pre);
+    waitKey(0);
+
+    */
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
     glutInitWindowPosition(0, 0);
