@@ -6,27 +6,38 @@
 
 SeamCarving::SeamCarving(Mat &img , Mat &mask) {
     this->img = img;
+    //calc_e1();
+
+    cvtColor(this->img , this->img , COLOR_RGB2GRAY);
+
     this->mask = mask;
     this->dp = vector<vector<double>>(max(img.rows , img.cols) , vector<double>(max(img.rows , img.cols) , 0));
     this->fa = vector<vector<int>>(max(img.rows , img.cols) , vector<int>(max(img.rows , img.cols) , 0));
     this->dis = vector<vector<Point>>(img.rows , vector<Point>(img.cols , Point(0 , 0)));
+
+    //time1 = clock();
     add_seam();
+    //time2 = clock();
+    //time = (double)(time2 - time1) / CLOCKS_PER_SEC;
+
 }
 //使用e1能量函数
 void SeamCarving::calc_e1() {
     Mat gx, gy;
-    Sobel(this->subimg, gx, CV_32F, 1, 0);
-    Sobel(this->subimg, gy, CV_32F, 0, 1);
+    Sobel(this->img, gx, CV_32F, 1, 0);
+    Sobel(this->img, gy, CV_32F, 0, 1);
     magnitude(gx, gy, this->emap);  // 只计算合梯度的幅值
-    for(int i = 0; i < subimg.rows ; i++){
-        for(int j = 0; j < subimg.cols ; j++){
-            if(submask.at<uchar>(i , j) == BG){
-                this->emap.at<float>(i , j) = INF;
-            }
+    //normalize(this->emap , this->emap , 0, 255 , cv::NORM_MINMAX, CV_32F);
+    //this->emap = this->emap * 255.0;
+    /*
+    double maxn = 0;
+    for(int i = 0; i < img.rows ; i++){
+        for(int j = 0; j < img.cols ; j++){
+            maxn = max(maxn , (double)emap.at<float >(i , j));
         }
     }
-
-
+    cout<<"check::"<<maxn<<'\n';
+    */
 }
 
 void SeamCarving::get_long_boundary() {
@@ -112,113 +123,205 @@ void SeamCarving::get_long_boundary() {
     }
 }
 
-double SeamCarving::get_diff(int x1 , int y1 , int x2 , int y2){
-    double R = (int)subimg.at<Vec3b>(x1 , y1)[0] - (int)subimg.at<Vec3b>(x2 , y2)[0];
-    double G = (int)subimg.at<Vec3b>(x1 , y1)[1] - (int)subimg.at<Vec3b>(x2 , y2)[1];
-    double B = (int)subimg.at<Vec3b>(x1 , y1)[2] - (int)subimg.at<Vec3b>(x2 , y2)[2];
-    return sqrt(R * R + G * G + B * B);
-}
 
 void SeamCarving::calc_seam(){
-    //Mat grayimg ;
-    //cvtColor(subimg, grayimg, COLOR_BGR2GRAY);
-    for(int i = 0 ; i < subimg.rows ; i++){
-        if(i == 0){
-            for(int j = 0; j < subimg.cols ;j++){
-                dp[i][j] = emap.at<float>(i , j);
+    //cvtColor(img , this->grayimg , COLOR_RGB2GRAY);
+
+    if(side == TOP || side == BOTTOM){
+        for(int i = end.first ; i <= end.second ; i++){
+            if(i == end.first){
+                for(int j = 0; j < img.rows ;j++){
+                    if(mask.at<uchar>(j , i) == BG)dp[j][i] = INF;
+                    else if(mask.at<uchar>(j , i) == ADT)dp[j][i] = 3000;
+                    else {
+                        dp[j][i] = emap.at<float>(j, i);
+                    }
+                }
             }
-        }
-        else {
-            for (int j = 0; j < subimg.cols; j++) {
-                dp[i][j] = 0;
-                dp[i][j] += emap.at<float>(i, j);
-                if(j == 0){
-                    double CU = 0 , CR = 0 ;
-                    CU = dp[i - 1][j];
-                    CR = dp[i - 1][j + 1] + get_diff(i - 1, j , i , j + 1);
-                    if(CU < CR){
-                        dp[i][j] += CU;
-                        fa[i][j] = 0;
+            else {
+                for (int j = 0; j < img.rows; j++) {
+                    dp[j][i] = 0;
+                    if(mask.at<uchar>(j , i) == BG)dp[j][i] = INF;
+                    else if(mask.at<uchar>(j , i) == ADT)dp[j][i] = 3000;
+                    else dp[j][i] = emap.at<float>(j, i);
+                    if(j == 0){
+                        double CU = 0 , CR = 0 ;
+                        CU = dp[j][i - 1];
+                        CR = dp[j + 1][i - 1] + abs((int)img.at<uchar>(j, i - 1) - (int)img.at<uchar>(j + 1 , i));
+                        if(CU < CR){
+                            dp[j][i] += CU;
+                            fa[j][i] = 0;
+                        }
+                        else {
+                            dp[j][i] += CR;
+                            fa[j][i] = 1;
+                        }
+                    }
+                    else if(j == img.rows - 1){
+                        double CL = 0 , CU = 0 ;
+                        CL = dp[j - 1][i - 1] + abs((int)img.at<uchar>(j , i - 1) - (int)img.at<uchar>(j - 1 , i));
+                        CU = dp[j][i - 1];
+                        if(CL < CU){
+                            dp[j][i] += CL;
+                            fa[j][i] = -1;
+                        }
+                        else {
+                            dp[j][i] += CU;
+                            fa[j][i] = 0;
+                        }
                     }
                     else {
-                        dp[i][j] += CR;
-                        fa[i][j] = 1;
-                    }
-                }
-                else if(j == subimg.cols - 1){
-                    double CL = 0 , CU = 0 ;
-                    CL = dp[i - 1][j - 1] + get_diff(i - 1 , j , i , j - 1);
-                    CU = dp[i - 1][j];
-                    if(CL < CU){
-                        dp[i][j] += CL;
-                        fa[i][j] = -1;
-                    }
-                    else {
-                        dp[i][j] += CU;
-                        fa[i][j] = 0;
-                    }
-                }
-                else {
-                    double CL = 0, CU = 0, CR = 0;
-                    CL += dp[i - 1][j - 1];
-                    CL += get_diff(i , j - 1 , i , j + 1);
-                    CL += get_diff(i - 1 , j , i , j - 1);
-                    CU += dp[i - 1][j];
-                    CU += get_diff(i , j - 1 , i , j + 1);
-                    CR += dp[i - 1][j + 1];
-                    CR += get_diff(i , j - 1 , i , j + 1);
-                    CR += get_diff(i - 1 , j , i , j + 1);
-                    double minn = min({CL , CU , CR});
+                        double CL = 0, CU = 0, CR = 0;
+                        CL += dp[j - 1][i - 1];
+                        CL += abs((int)img.at<uchar>(j - 1 , i) - (int)img.at<uchar>(j + 1 , i));
+                        CL += abs((int)img.at<uchar>(j , i - 1) - (int)img.at<uchar>(j - 1 , i));
+                        CU += dp[j][i - 1];
+                        CU += abs((int)img.at<uchar>(j - 1 , i) - (int)img.at<uchar>(j + 1 , i));
+                        CR += dp[j + 1][i - 1];
+                        CR += abs((int)img.at<uchar>(j - 1 , i) - (int)img.at<uchar>(j + 1 , i));
+                        CR += abs((int)img.at<uchar>(j , i - 1) - (int)img.at<uchar>(j + 1 , i));
+                        double minn = min({CL , CU , CR});
 //                    cout<<"find::"<<' '<<CL<<' '<<CU<<' '<<CR<<'\n';
-                    dp[i][j] += minn;
-                    if(minn == CL )fa[i][j] = -1;
-                    else if(minn == CU) fa[i][j] = 0;
-                    else fa[i][j] = 1;
-                }
+                        dp[j][i] += minn;
+                        if(minn == CL )fa[j][i] = -1;
+                        else if(minn == CU) fa[j][i] = 0;
+                        else fa[j][i] = 1;
+                    }
 
+                }
+            }
+
+        }
+        int row = 0;
+        double minn = 1e18;
+        for(int j = 0; j < img.rows ; j++){
+            if(dp[j][end.second] < minn){
+                minn = dp[j][end.second];
+                row = j;
             }
         }
+        this->pos.clear();
+        int col = end.second;
+        bool inf = 0;
+        if(dp[row][col] >= INF){
+            inf = 1;
+            cout<<"check::"<<dp[row][col]<<' ' << col<<'\n';
+            cout<<"Error!"<<'\n';
+        }
+        bool ok = 1;
+        while(col > end.first){
+            this->pos.emplace_back(row);
+            if(mask.at<uchar>(row , col) == BG){
+                ok = 0;
+            }
+            row += fa[row][col];
+            col--;
+            if(row >= img.rows || row < 0){
+                cout<<"dp error!"<<'\n';
+                cout<<"col out image!"<<'\n';
+                exit(0);
+            }
+        }
+        this->pos.emplace_back(row);
+
+        reverse(this->pos.begin() , this->pos.end());
 
     }
-    int col = 0;
-    double minn = 1e18;
-    for(int j = 0; j < subimg.cols ; j++){
-        if(dp[subimg.rows - 1][j] < minn){
-            minn = dp[subimg.rows - 1][j];
-            col = j;
+    else {
+        for (int i = end.first; i <= end.second; i++) {
+            if (i == end.first) {
+                for (int j = 0; j < img.cols; j++) {
+                    if(mask.at<uchar>(i , j) == BG)dp[i][j] = INF;
+                    else if(mask.at<uchar>(i , j) == ADT)dp[i][j] = 3000;
+                    else dp[i][j] = emap.at<float>(i, j);
+                }
+            } else {
+                for (int j = 0; j < img.cols; j++) {
+                    dp[i][j] = 0;
+                    if(mask.at<uchar>(i , j) == BG)dp[i][j] = INF;
+                    else if(mask.at<uchar>(i , j) == ADT)dp[i][j] = 3000;
+                    else dp[i][j] = emap.at<float>(i, j);
+                    if (j == 0) {
+                        double CU = 0, CR = 0;
+                        CU = dp[i - 1][j];
+                        CR = dp[i - 1][j + 1] +
+                             abs((int) img.at<uchar>(i - 1, j) - (int) img.at<uchar>(i, j + 1));
+
+                        if (CU < CR) {
+                            dp[i][j] += CU;
+                            fa[i][j] = 0;
+                        } else {
+                            dp[i][j] += CR;
+                            fa[i][j] = 1;
+                        }
+                    } else if (j == img.cols - 1) {
+                        double CL = 0, CU = 0;
+                        CL = dp[i - 1][j - 1] +
+                             abs((int) img.at<uchar>(i - 1, j) - (int) img.at<uchar>(i, j - 1));
+                        CU = dp[i - 1][j];
+                        if (CL < CU) {
+                            dp[i][j] += CL;
+                            fa[i][j] = -1;
+                        } else {
+                            dp[i][j] += CU;
+                            fa[i][j] = 0;
+                        }
+                    } else {
+                        double CL = 0, CU = 0, CR = 0;
+                        CL += dp[i - 1][j - 1];
+                        CL += abs((int) img.at<uchar>(i, j - 1) - (int) img.at<uchar>(i, j + 1));
+                        CL += abs((int) img.at<uchar>(i - 1, j) - (int) img.at<uchar>(i, j - 1));
+                        CU += dp[i - 1][j];
+                        CU += abs((int) img.at<uchar>(i, j - 1) - (int) img.at<uchar>(i, j + 1));
+                        CR += dp[i - 1][j + 1];
+                        CR += abs((int) img.at<uchar>(i, j - 1) - (int) img.at<uchar>(i, j + 1));
+                        CR += abs((int) img.at<uchar>(i - 1, j) - (int) img.at<uchar>(i, j + 1));
+                        double minn = min({CL, CU, CR});
+//                    cout<<"find::"<<' '<<CL<<' '<<CU<<' '<<CR<<'\n';
+                        dp[i][j] += minn;
+                        if (minn == CL)fa[i][j] = -1;
+                        else if (minn == CU) fa[i][j] = 0;
+                        else fa[i][j] = 1;
+                    }
+
+                }
+            }
+
         }
-    }
-    this->pos.clear();
-    int row = subimg.rows - 1;
-    bool inf = 0;
-    if(dp[row][col] >= INF){
-        inf = 1;
-        cout<<"check::"<<dp[row][col]<<' ' << col<<'\n';
-        cout<<"Error!"<<'\n';
-    }
-    bool ok = 1;
-    while(row){
+        int col = 0;
+        double minn = 1e18;
+        for (int j = 0; j < img.cols; j++) {
+            if (dp[end.second][j] < minn) {
+                minn = dp[end.second][j];
+                col = j;
+            }
+        }
+        this->pos.clear();
+        int row = end.second;
+        bool inf = 0;
+        if (dp[row][col] >= INF) {
+            inf = 1;
+            cout << "check::" << dp[row][col] << ' ' << col << '\n';
+            cout << "Error!" << '\n';
+        }
+        bool ok = 1;
+        while (row > end.first) {
+            this->pos.emplace_back(col);
+            if (mask.at<uchar>(row, col) == BG) {
+                ok = 0;
+            }
+            col += fa[row][col];
+            row--;
+            if (col >= img.cols || col < 0) {
+                cout << "dp error!" << '\n';
+                cout << "col out image!" << '\n';
+                exit(0);
+            }
+        }
         this->pos.emplace_back(col);
-        if(submask.at<uchar>(row , col) == BG){
-            ok = 0;
-        }
-        col += fa[row][col];
-        row--;
-        if(col >= subimg.cols || col < 0){
-            cout<<"dp error!"<<'\n';
-            cout<<"col out image!"<<'\n';
-            cout<<"img size "<< subimg.rows <<' '<<subimg.cols<<'\n';
 
-            cout<<"ok??? "<<row<<' '<<col<<'\n';
-
-
-            exit(0);
-        }
+        reverse(this->pos.begin(), this->pos.end());
     }
-    this->pos.emplace_back(col);
-
-    reverse(this->pos.begin() , this->pos.end());
-
 
 }
 
@@ -227,53 +330,165 @@ bool SeamCarving::add_seam(){
     while(1) {
         get_long_boundary();
         if (this->end.first == -1 || this->end.second == this->end.first )break;
-        if (this->side == TOP || this->side == BOTTOM) {
-            transpose(img, img);
-            transpose(mask, mask);
-        }
-        Rect roiRect(0, end.first, img.cols, end.second - end.first + 1);
-        this->subimg = this->img(roiRect).clone();
-        this->submask = this->mask(roiRect).clone();
+
         calc_e1();
         calc_seam();
-        this->subimg.copyTo(this->img(roiRect));
-        //continue;
-        for (int i = end.first; i <= end.second; i++) {
-            int p = i - end.first;
-            if (this->side == TOP || this->side == LEFT) {
-                for (int j = 0; j < this->pos[p]; j++) {
-                    img.at<Vec3b>(i, j) = img.at<Vec3b>(i, j + 1);
-                    mask.at<uchar>(i, j) = mask.at<uchar>(i, j + 1);
-                }
-            } else {
-                for (int j = img.cols - 1; j > this->pos[p]; j--) {
-                    img.at<Vec3b>(i, j) = img.at<Vec3b>(i, j - 1);
-                    mask.at<uchar>(i, j) = mask.at<uchar>(i, j - 1);
+
+        if(side == TOP || side == BOTTOM){
+            if(side == TOP){
+                for(int i = end.first ; i <= end.second ; i++){
+                    int p = i - end.first;
+                    for (int j = 0; j < this->pos[p]; j++) {
+                        img.at<uchar>(j, i) = img.at<uchar>(j + 1, i);
+                        mask.at<uchar>(j, i) = mask.at<uchar>(j + 1, i);
+                        //grayimg.at<uchar>(j , i) = grayimg.at<uchar>(j + 1 , i);
+                        //emap.at<float>(j , i) = emap.at<float >(j + 1 , i);
+                        dis[j][i].y = dis[j + 1][i].y ;
+                        dis[j][i].x = dis[j + 1][i].x - 1;
+                    }
+                    if (this->pos[p] == 0 || this->pos[p] == img.rows - 1) {
+                        if (this->pos[p] == 0) {
+                            img.at<uchar>(this->pos[p] , i ) = img.at<uchar>(this->pos[p] + 1 , i);
+                            //grayimg.at<uchar>(this->pos[p] , i) = grayimg.at<uchar>(this->pos[p] + 1 , i);
+                        } else {
+                            img.at<uchar>(this->pos[p], i) = img.at<uchar>(this->pos[p] - 1, i);
+                            //grayimg.at<uchar>(this->pos[p] , i) = grayimg.at<uchar>(this->pos[p] - 1 , i);
+                        }
+                    } else {
+                        img.at<uchar>(this->pos[p], i) = img.at<uchar>(this->pos[p] - 1, i) / 2 + img.at<uchar>(this->pos[p] + 1, i) / 2 ;
+
+                    }
+                    img.at<uchar>(this->pos[p], i) = ((int)img.at<uchar>(this->pos[p], i) + 127) % 255;
+
+                    if(mask.at<uchar>(this->pos[p] , i) != BG) {
+                        mask.at<uchar>( this->pos[p] , i ) = ADT;
+                    }
                 }
             }
-            int cnt = 0;
-            if (this->pos[p] == 0 || this->pos[p] == img.cols - 1) {
-                if (this->pos[p] == 0) {
-                    img.at<Vec3b>(i, this->pos[p]) = img.at<Vec3b>(i, this->pos[p] + 1);
-                } else {
-                    img.at<Vec3b>(i, this->pos[p]) = img.at<Vec3b>(i, this->pos[p] - 1);
+            else {
+                for(int i = end.first ; i <= end.second ; i++){
+                    int p = i - end.first;
+                    for (int j = img.rows - 1; j > this->pos[p]; j--) {
+                        img.at<uchar>(j, i) = img.at<uchar>(j - 1, i);
+                        mask.at<uchar>(j, i) = mask.at<uchar>(j - 1, i);
+                        //emap.at<float>(j , i) = emap.at<float >(j - 1 , i);
+
+                        //grayimg.at<uchar>(j , i) = grayimg.at<uchar>(j - 1 , i);
+
+                        dis[j][i].y = dis[j - 1][i].y ;
+                        dis[j][i].x = dis[j - 1][i].x + 1;
+                    }
+                    if (this->pos[p] == 0 || this->pos[p] == img.rows - 1) {
+                        if (this->pos[p] == 0) {
+                            img.at<uchar>(this->pos[p] , i ) = img.at<uchar>(this->pos[p] + 1 , i);
+                        } else {
+                            img.at<uchar>(this->pos[p], i) = img.at<uchar>(this->pos[p] - 1, i);
+                        }
+                    } else {
+                        img.at<uchar>(this->pos[p], i) = img.at<uchar>(this->pos[p] - 1, i) / 2 + img.at<uchar>(this->pos[p] + 1, i) / 2;
+                    }
+                    img.at<uchar>(this->pos[p], i) = ((int)img.at<uchar>(this->pos[p], i) + 127) % 255;
+
+                    if(mask.at<uchar>(this->pos[p] , i) != BG) {
+                        mask.at<uchar>( this->pos[p] , i ) = ADT;
+                    }
                 }
-            } else {
-                img.at<Vec3b>(i, this->pos[p]) = img.at<Vec3b>(i, this->pos[p] - 1) / 2 + img.at<Vec3b>(i, this->pos[p] + 1) / 2;
-                Vec3b rev(255 - img.at<Vec3b>(i, this->pos[p])[0] , 255 - img.at<Vec3b>(i, this->pos[p])[1] , 255 - img.at<Vec3b>(i, this->pos[p])[2]);
-                img.at<Vec3b>(i, this->pos[p]) = rev;
-            }
-            if(mask.at<uchar>(i , this->pos[p]) != BG) {
-                mask.at<uchar>(i, this->pos[p]) = ADT;
             }
         }
-        //cout << "point3" << '\n';
-        if (this->side == TOP || this->side == BOTTOM) {
-            transpose(img, img);
-            transpose(mask, mask);
+        else {
+            if(side == LEFT){
+                for(int i = end.first ; i <= end.second ; i++){
+                    int p = i - end.first;
+                    for (int j = 0; j < this->pos[p]; j++) {
+                        img.at<uchar>(i, j) = img.at<uchar>(i, j + 1);
+                        mask.at<uchar>(i, j) = mask.at<uchar>(i, j + 1);
+                        //emap.at<float>(i ,j) = emap.at<float >(i , j + 1);
+
+                        //grayimg.at<uchar>(i , j) = grayimg.at<uchar>(i , j + 1);
+
+                        dis[i][j].y = dis[i][j + 1].y - 1;
+                        dis[i][j].x = dis[i][j + 1].x;
+                    }
+                    if (this->pos[p] == 0 || this->pos[p] == img.cols - 1) {
+                        if (this->pos[p] == 0) {
+                            img.at<uchar>(i, this->pos[p]) = img.at<uchar>(i, this->pos[p] + 1);
+                            //grayimg.at<uchar>(i , this->pos[p]) = grayimg.at<uchar>(i , this->pos[p] + 1);
+                        } else {
+                            img.at<uchar>(i, this->pos[p]) = img.at<uchar>(i, this->pos[p] - 1);
+                            //grayimg.at<uchar>(i , this->pos[p]) = grayimg.at<uchar>(i , this->pos[p] - 1);
+                        }
+                    } else {
+                        img.at<uchar>(i, this->pos[p]) = img.at<uchar>(i, this->pos[p] - 1) / 2 + img.at<uchar>(i, this->pos[p] + 1) / 2;
+                    }
+                    img.at<uchar>(i, this->pos[p]) = ((int)img.at<uchar>(i, this->pos[p]) + 127) % 255;
+
+                    if(mask.at<uchar>(i , this->pos[p]) != BG) {
+                        mask.at<uchar>(i, this->pos[p]) = ADT;
+                    }
+
+                }
+            }
+            else {
+                for(int i = end.first ; i <= end.second ; i++){
+                    int p = i - end.first;
+                    for (int j = img.cols - 1; j > this->pos[p]; j--) {
+                        img.at<uchar>(i, j) = img.at<uchar>(i , j - 1);
+                        mask.at<uchar>(i, j) = mask.at<uchar>(i, j - 1);
+
+                        //emap.at<float>(i ,j) = emap.at<float >(i , j - 1);
+                        //grayimg.at<uchar>(i , j) = grayimg.at<uchar>(i , j - 1);
+
+                        dis[i][j].y = dis[i][j - 1].y + 1;
+                        dis[i][j].x = dis[i][j - 1].x;
+                    }
+
+                    if (this->pos[p] == 0 || this->pos[p] == img.cols - 1) {
+                        if (this->pos[p] == 0) {
+                            img.at<uchar>(i, this->pos[p]) = img.at<uchar>(i, this->pos[p] + 1);
+                        } else {
+                            img.at<uchar>(i, this->pos[p]) = img.at<uchar>(i, this->pos[p] - 1);
+                        }
+                    } else {
+                        img.at<uchar>(i, this->pos[p]) = img.at<uchar>(i, this->pos[p] - 1) / 2 + img.at<uchar>(i, this->pos[p] + 1) / 2;
+                    }
+                    img.at<uchar>(i, this->pos[p]) = ((int)img.at<uchar>(i, this->pos[p]) + 127) % 255;
+
+                    if(mask.at<uchar>(i , this->pos[p]) != BG) {
+                        mask.at<uchar>(i, this->pos[p]) = ADT;
+                    }
+                }
+            }
         }
-        //imshow("img" , img);
-        //waitKey(1);
+        /*
+        Mat pre ;
+        cvtColor(img , pre , COLOR_GRAY2RGB);
+
+        if(side == LEFT){
+            for(int i = end.first ; i <= end.second ; i++){
+                pre.at<Vec3b>(i , 0) = GREEN;
+                pre.at<Vec3b>(i , 1) = GREEN;
+
+            }
+        }
+        else if(side == RIGHT){
+            for(int i = end.first ; i <= end.second ; i++){
+                pre.at<Vec3b>(i , img.cols - 1) = GREEN;
+            }
+        }
+        else if(side == TOP){
+            for(int i = end.first ; i <= end.second ; i++){
+                pre.at<Vec3b>(0 , i) = GREEN;
+            }
+        }
+        else {
+            for(int i = end.first ; i <= end.second ; i++){
+                pre.at<Vec3b>(img.rows - 1 , i) = GREEN;
+            }
+        }
+        imshow("img" , pre);
+        waitKey(10);
+         */
+        /*
        if(side == LEFT){
            for(int i = end.first ; i <= end.second ; i++){
                for(int j = 0 ; j < this->pos[i - end.first]; j ++){
@@ -284,30 +499,33 @@ bool SeamCarving::add_seam(){
        }
        else if(side == RIGHT){
            for(int i = end.first ; i <= end.second ; i++){
-               for(int j = img.cols - 1 ; j > this->pos[i - end.first]; j --){
+               for(int j = grayimg.cols - 1 ; j > this->pos[i - end.first]; j --){
                    dis[i][j].y = dis[i][j - 1].y + 1;
                    dis[i][j].x = dis[i][j - 1].x;
                }
            }
        }
        else if(side == TOP){
+
            for(int i = end.first ; i <= end.second ; i++){
+
                for(int j = 0 ; j < this->pos[i - end.first]; j ++){
                    dis[j][i].y = dis[j + 1][i].y ;
                    dis[j][i].x = dis[j + 1][i].x - 1;
                }
            }
        }
-       else if(side = BOTTOM){
+       else if(side == BOTTOM){
            for(int i = end.first ; i <= end.second ; i++){
-               for(int j = img.rows - 1 ; j > this->pos[i - end.first]; j --){
+               for(int j = grayimg.rows - 1 ; j > this->pos[i - end.first]; j --){
                    dis[j][i].y = dis[j - 1][i].y ;
                    dis[j][i].x = dis[j - 1][i].x + 1;
                }
            }
        }
-    }
+         */
 
+    }
     Rect_wrap();
 
 }
@@ -336,13 +554,13 @@ void SeamCarving::Rect_wrap(){
         for(int j = 0; j < img.cols ; j += col_num ){
             pre.emplace_back(Point(i , j));
         }
-        if(pre.back().y != img.cols - 1){
+        if(pre.back().y != img.cols - 1 && img.cols - pre.back().y >= 5){
             pre.emplace_back(Point(i , img.cols - 1));
         }
         res.emplace_back(pre);
     }
 
-    if(res.back().back().x != img.rows - 1){
+    if(res.back().back().x != img.rows - 1 && img.rows - res.back().back().x >= 5){
         vector<Point>pre;
         for(int j = 0; j < img.cols ; j += col_num ){
             pre.emplace_back(Point(img.rows - 1 , j));
@@ -375,69 +593,7 @@ void SeamCarving::irrect_wrap(){
             this->ordinate[i][j] = Point(new_x , new_y);
         }
     }
-    /*
-    Mat pre = Mat(img.rows , img.cols , CV_8UC3  ,Scalar(255,255,255));
-    for(int i = 0; i < img.rows ; i++){
-        for(int j = 0; j < img.cols ; j++){
-            if(mask.at<uchar>(i , j) == BG || mask.at<uchar>(i , j) == ADT){
-                continue;
-            }
-            else {
-                int x = i - dis[i][j].x;
-                int y = j - dis[i][j].y;
-                pre.at<Vec3b>(x , y) = img.at<Vec3b>(i , j);
-            }
-        }
-    }
-    for(int i = 0; i < this->ordinate.size() ; i++){
-        for(int j = 0; j < this->ordinate[i].size() ; j++){
-            Point now = Point(this->ordinate[i][j].y , this->ordinate[i][j].x);
-            circle(pre , now , 2 , Scalar(0, 255, 0) , 2);
-        }
-    }
-    imshow("img" , pre);
-    waitKey(0);
-    */
 }
 vector<vector<Point>> SeamCarving::get_ordinate() {
     return this->ordinate;
-}
-void SeamCarving::show(){
-    Mat pre = img.clone();
-    cout<<"111"<<' '<<end.first<<' '<<end.second<<' ' << this->side<< '\n';
-    //cout<<(int)pre.at<Vec3b>(img.rows - 1, 4182)[0]<<' '<<(int)pre.at<Vec3b>(img.rows - 1, 4182)[1]<<' ' << (int)pre.at<Vec3b>(img.rows - 1, 4182)[2]<<'\n';
-    //cout<<(int)img.at<Vec3b>(img.rows - 1, 4182)[0]<<' '<<(int)img.at<Vec3b>(img.rows - 1, 4182)[1]<<' ' << (int)img.at<Vec3b>(img.rows - 1, 4182)[2]<<'\n';
-    //cout<<(int)mask.at<uchar>(img.rows - 1 , 4182)<<'\n';
-
-
-    if(this->side == LEFT){
-
-        for(int i = end.first ; i <= end.second ; i++){
-            pre.at<Vec3b>(i , 0) = BLUE;
-        }
-    }
-    else if(this->side == RIGHT){
-
-        for(int i = end.first ; i <= end.second ; i++){
-            pre.at<Vec3b>(i , pre.cols - 1) = BLUE;
-        }
-    }
-    else if(this->side == TOP){
-
-        for(int i = end.first ; i <= end.second ; i++){
-            pre.at<Vec3b>(0 , i) = BLUE;
-        }
-    }
-    else if(this->side == BOTTOM){
-
-        for(int i = end.first ; i <= end.second ; i++){
-            pre.at<Vec3b>(pre.rows - 1 , i) = BLUE;
-        }
-    }
-
-    cout<<"inthis"<<'\n';
-
-    imshow("image" , pre);
-    waitKey(0);
-
 }

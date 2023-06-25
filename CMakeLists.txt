@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.24)
 project(Imporve_SeamCarving)
 
 set(CMAKE_CXX_STANDARD 17)
+set(DCMAKE_BUILD_TYPE=Release)
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Wall -O3")
 
 file(GLOB src "${PROJECT_SOURCE_DIR}/*.cpp")
 

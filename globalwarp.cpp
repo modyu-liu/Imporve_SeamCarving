@@ -227,6 +227,9 @@ Pointd globalwarp::modify_line(Pointd &s, int i, int j) {
     Pointd p4 = Pointd(x , y - 1);
     Pointd p5 = Pointd(x - 1 , y - 1);
     Pointd p6 = Pointd(x + 1 , y + 1);
+    Pointd p7 = Pointd(x + 1 , y - 1);
+    Pointd p8 = Pointd(x - 1 , y + 1);
+
 
     if(inmesh(p1 , i , j)){
         return p1;
@@ -246,9 +249,20 @@ Pointd globalwarp::modify_line(Pointd &s, int i, int j) {
     else if(inmesh(p6 , i , j)){
         return p6;
     }
+    else if(inmesh(p7 , i , j)){
+        return p7;
+    }
+    else if(inmesh(p8 , i , j)){
+        return p8;
+    }
     else {
         cout<<"have some bug!"<<'\n';
         cout<<s.x<<' '<<s.y<<'\n';
+        Pointd a = this->mordinate[i][j];
+        Pointd b = this->mordinate[i][j + 1];
+        Pointd c = this->mordinate[i + 1][j + 1];
+        Pointd d = this->mordinate[i + 1][j];
+        cout<<a.x<<' '<<a.y<<' '<<b.x<<' '<<b.y<<' '<<c.x<<' '<<c.y<<" "<<d.x<<' '<<d.y<<'\n';
 
         exit(0);
 
@@ -593,12 +607,16 @@ MatrixXd globalwarp::inv_biliner(Pointd& P , int x, int y) {
             if((e(1) + g(1) * v) == 0 && (e(0) + g(0) * v) == 0){
                 exit(0);
             }
-            if((e(0) + g(0) * v) == 0){
-                u = (h(1) - f(1) * v) / (e(1) + g(1) * v);
+            double u1 = -1, u2 = -1;
+            if((e(1) + g(1) * v) != 0){
+                u1 = (h(1) - f(1) * v) / (e(1) + g(1) * v);
             }
-            else {
-                u = (h(0) - f(0) * v) / (e(0) + g(0) * v);
+            if((e(0) + g(0) * v) != 0) {
+                u2 = (h(0) - f(0) * v) / (e(0) + g(0) * v);
             }
+            if(u1 >= 0 && u1 <= 1)u = u1;
+            else u = u2;
+
             if (u < 0.0 || u > 1.0 || v < 0.0 || v > 1.0) {
                 ppp = 1;
                 v = (-k1 + w) * ik2;

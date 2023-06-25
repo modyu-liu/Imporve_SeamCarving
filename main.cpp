@@ -180,7 +180,7 @@ double shrinkImage(Mat src, Mat &dst) {
 
 int main(int argc, char* argv[]){
     //img = imread("2.png");
-    img = imread("1_input.jpg");
+    img = imread("./data/10c_input.jpg");
     //img = imread("10a_input.jpg");
     //clean_img(img);
     Mat out_img;
@@ -260,21 +260,15 @@ int main(int argc, char* argv[]){
     imshow("img" , now);
     waitKey(0);
     */
+    cout<<"find:: ok !"<<'\n';
 
     long time1 = getCurrentTime();
-    SeamCarving seam(img , mask);
+    Mat input_img = img.clone();
+    SeamCarving seam(input_img , mask);
     long time2 = getCurrentTime();
     cout<<"check::seamcarving : "<<time2 - time1<<"ms "<<'\n';
-
-    globalwarp globalwarp(img , seam.get_ordinate());
-
-    time2 = getCurrentTime();
-    cout<<"check::global : "<<time2 - time1<<" ms"<<'\n';
+    cout<<"se t ::: "<<seam.time<<'\n';
     co1 = seam.get_ordinate();
-    co2 = globalwarp.get_ordinate();
-    time2 = getCurrentTime();
-    cout<<"check::sumtime : "<<time2 - time1<<" ms"<<'\n';
-
     /*
     Mat pre = img.clone();
     for(int i = 0; i < co1.size() - 1 ; i ++){
@@ -293,7 +287,20 @@ int main(int argc, char* argv[]){
     imshow("img" , pre);
     waitKey(0);
     */
+    globalwarp globalwarp(img , seam.get_ordinate());
 
+
+    time2 = getCurrentTime();
+    cout<<"check::global : "<<time2 - time1<<" ms"<<'\n';
+
+    co2 = globalwarp.get_ordinate();
+    time2 = getCurrentTime();
+    cout<<"check::sumtime : "<<time2 - time1<<" ms"<<'\n';
+    /*
+
+
+
+    */
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
     glutInitWindowPosition(0, 0);
