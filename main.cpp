@@ -40,12 +40,7 @@ Mat clean(Mat src ){
     erode(dilate_out, erode_out, element);
     return erode_out;
 }
-long getCurrentTime()
-{
-    struct timeval tv;
-    gettimeofday(&tv,NULL);
-    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
-}
+
 #define clamp(x,a,b)    (  ((a)<(b)) \
 ? ((x)<(a))?(a):(((x)>(b))?(b):(x))	\
 : ((x)<(b))?(b):(((x)>(a))?(a):(x))	\
@@ -179,10 +174,9 @@ double shrinkImage(Mat src, Mat &dst) {
 }
 
 int main(int argc, char* argv[]){
-    //img = imread("2.png");
-    img = imread("./data/10c_input.jpg");
-    //img = imread("10a_input.jpg");
-    //clean_img(img);
+
+
+    img = imread("./data/10a_input.jpg");
     Mat out_img;
     double scale = shrinkImage(img , out_img);
     img = out_img;
@@ -200,6 +194,7 @@ int main(int argc, char* argv[]){
             }
         }
     }
+
     auto prepare = [&](){
         int up = 0 , bottom = 0 , left = 0 , right = 0;
         bool ok = 1;
@@ -248,28 +243,22 @@ int main(int argc, char* argv[]){
     };
 
     prepare();
-    /*
-    Mat now = img.clone();
-    for(int i = 0 ; i < now.rows ; i++){
-        for(int j = 0; j < now.cols ; j++){
-            if(mask.at<uchar>(i , j) == BG){
-                now.at<Vec3b>(i , j) = BLACK;
-            }
-        }
-    }
-    imshow("img" , now);
-    waitKey(0);
-    */
-    cout<<"find:: ok !"<<'\n';
-
-    long time1 = getCurrentTime();
+    clock_t time1 , time2 , t1 , t2;
     Mat input_img = img.clone();
+
+    time1 = clock();
+    t1 = clock();
+
     SeamCarving seam(input_img , mask);
-    long time2 = getCurrentTime();
-    cout<<"check::seamcarving : "<<time2 - time1<<"ms "<<'\n';
-    cout<<"se t ::: "<<seam.time<<'\n';
+
+    time2 = clock();
+
+    cout<<"localwarp cost time:: "<<(double)(time2 - time1) / CLOCKS_PER_SEC<<" s"<<'\n';
+
     co1 = seam.get_ordinate();
+
     /*
+    //绘制网格图
     Mat pre = img.clone();
     for(int i = 0; i < co1.size() - 1 ; i ++){
         for(int j = 0 ; j < co1[0].size() - 1 ; j++){
@@ -287,20 +276,18 @@ int main(int argc, char* argv[]){
     imshow("img" , pre);
     waitKey(0);
     */
+    time1 = clock();
     globalwarp globalwarp(img , seam.get_ordinate());
+    time2 = clock();
 
-
-    time2 = getCurrentTime();
-    cout<<"check::global : "<<time2 - time1<<" ms"<<'\n';
+    cout<<"globalwarp cost time:: "<<double(time2 - time1) / CLOCKS_PER_SEC <<" s"<<'\n';
 
     co2 = globalwarp.get_ordinate();
-    time2 = getCurrentTime();
-    cout<<"check::sumtime : "<<time2 - time1<<" ms"<<'\n';
-    /*
+
+    t2 = clock();
+    cout<<"total cost time:: "<<(double)(t2 - t1) / CLOCKS_PER_SEC<<" s"<<'\n';
 
 
-
-    */
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
     glutInitWindowPosition(0, 0);

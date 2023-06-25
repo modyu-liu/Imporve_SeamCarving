@@ -6,19 +6,14 @@
 
 SeamCarving::SeamCarving(Mat &img , Mat &mask) {
     this->img = img;
-    //calc_e1();
-
     cvtColor(this->img , this->img , COLOR_RGB2GRAY);
-
     this->mask = mask;
     this->dp = vector<vector<double>>(max(img.rows , img.cols) , vector<double>(max(img.rows , img.cols) , 0));
     this->fa = vector<vector<int>>(max(img.rows , img.cols) , vector<int>(max(img.rows , img.cols) , 0));
     this->dis = vector<vector<Point>>(img.rows , vector<Point>(img.cols , Point(0 , 0)));
 
-    //time1 = clock();
     add_seam();
-    //time2 = clock();
-    //time = (double)(time2 - time1) / CLOCKS_PER_SEC;
+
 
 }
 //使用e1能量函数
@@ -27,17 +22,6 @@ void SeamCarving::calc_e1() {
     Sobel(this->img, gx, CV_32F, 1, 0);
     Sobel(this->img, gy, CV_32F, 0, 1);
     magnitude(gx, gy, this->emap);  // 只计算合梯度的幅值
-    //normalize(this->emap , this->emap , 0, 255 , cv::NORM_MINMAX, CV_32F);
-    //this->emap = this->emap * 255.0;
-    /*
-    double maxn = 0;
-    for(int i = 0; i < img.rows ; i++){
-        for(int j = 0; j < img.cols ; j++){
-            maxn = max(maxn , (double)emap.at<float >(i , j));
-        }
-    }
-    cout<<"check::"<<maxn<<'\n';
-    */
 }
 
 void SeamCarving::get_long_boundary() {
@@ -125,7 +109,6 @@ void SeamCarving::get_long_boundary() {
 
 
 void SeamCarving::calc_seam(){
-    //cvtColor(img , this->grayimg , COLOR_RGB2GRAY);
 
     if(side == TOP || side == BOTTOM){
         for(int i = end.first ; i <= end.second ; i++){
@@ -181,7 +164,6 @@ void SeamCarving::calc_seam(){
                         CR += abs((int)img.at<uchar>(j - 1 , i) - (int)img.at<uchar>(j + 1 , i));
                         CR += abs((int)img.at<uchar>(j , i - 1) - (int)img.at<uchar>(j + 1 , i));
                         double minn = min({CL , CU , CR});
-//                    cout<<"find::"<<' '<<CL<<' '<<CU<<' '<<CR<<'\n';
                         dp[j][i] += minn;
                         if(minn == CL )fa[j][i] = -1;
                         else if(minn == CU) fa[j][i] = 0;
@@ -277,7 +259,6 @@ void SeamCarving::calc_seam(){
                         CR += abs((int) img.at<uchar>(i, j - 1) - (int) img.at<uchar>(i, j + 1));
                         CR += abs((int) img.at<uchar>(i - 1, j) - (int) img.at<uchar>(i, j + 1));
                         double minn = min({CL, CU, CR});
-//                    cout<<"find::"<<' '<<CL<<' '<<CU<<' '<<CR<<'\n';
                         dp[i][j] += minn;
                         if (minn == CL)fa[i][j] = -1;
                         else if (minn == CU) fa[i][j] = 0;
@@ -341,18 +322,14 @@ bool SeamCarving::add_seam(){
                     for (int j = 0; j < this->pos[p]; j++) {
                         img.at<uchar>(j, i) = img.at<uchar>(j + 1, i);
                         mask.at<uchar>(j, i) = mask.at<uchar>(j + 1, i);
-                        //grayimg.at<uchar>(j , i) = grayimg.at<uchar>(j + 1 , i);
-                        //emap.at<float>(j , i) = emap.at<float >(j + 1 , i);
                         dis[j][i].y = dis[j + 1][i].y ;
                         dis[j][i].x = dis[j + 1][i].x - 1;
                     }
                     if (this->pos[p] == 0 || this->pos[p] == img.rows - 1) {
                         if (this->pos[p] == 0) {
                             img.at<uchar>(this->pos[p] , i ) = img.at<uchar>(this->pos[p] + 1 , i);
-                            //grayimg.at<uchar>(this->pos[p] , i) = grayimg.at<uchar>(this->pos[p] + 1 , i);
                         } else {
                             img.at<uchar>(this->pos[p], i) = img.at<uchar>(this->pos[p] - 1, i);
-                            //grayimg.at<uchar>(this->pos[p] , i) = grayimg.at<uchar>(this->pos[p] - 1 , i);
                         }
                     } else {
                         img.at<uchar>(this->pos[p], i) = img.at<uchar>(this->pos[p] - 1, i) / 2 + img.at<uchar>(this->pos[p] + 1, i) / 2 ;
@@ -371,10 +348,6 @@ bool SeamCarving::add_seam(){
                     for (int j = img.rows - 1; j > this->pos[p]; j--) {
                         img.at<uchar>(j, i) = img.at<uchar>(j - 1, i);
                         mask.at<uchar>(j, i) = mask.at<uchar>(j - 1, i);
-                        //emap.at<float>(j , i) = emap.at<float >(j - 1 , i);
-
-                        //grayimg.at<uchar>(j , i) = grayimg.at<uchar>(j - 1 , i);
-
                         dis[j][i].y = dis[j - 1][i].y ;
                         dis[j][i].x = dis[j - 1][i].x + 1;
                     }
@@ -434,10 +407,6 @@ bool SeamCarving::add_seam(){
                     for (int j = img.cols - 1; j > this->pos[p]; j--) {
                         img.at<uchar>(i, j) = img.at<uchar>(i , j - 1);
                         mask.at<uchar>(i, j) = mask.at<uchar>(i, j - 1);
-
-                        //emap.at<float>(i ,j) = emap.at<float >(i , j - 1);
-                        //grayimg.at<uchar>(i , j) = grayimg.at<uchar>(i , j - 1);
-
                         dis[i][j].y = dis[i][j - 1].y + 1;
                         dis[i][j].x = dis[i][j - 1].x;
                     }
@@ -459,72 +428,6 @@ bool SeamCarving::add_seam(){
                 }
             }
         }
-        /*
-        Mat pre ;
-        cvtColor(img , pre , COLOR_GRAY2RGB);
-
-        if(side == LEFT){
-            for(int i = end.first ; i <= end.second ; i++){
-                pre.at<Vec3b>(i , 0) = GREEN;
-                pre.at<Vec3b>(i , 1) = GREEN;
-
-            }
-        }
-        else if(side == RIGHT){
-            for(int i = end.first ; i <= end.second ; i++){
-                pre.at<Vec3b>(i , img.cols - 1) = GREEN;
-            }
-        }
-        else if(side == TOP){
-            for(int i = end.first ; i <= end.second ; i++){
-                pre.at<Vec3b>(0 , i) = GREEN;
-            }
-        }
-        else {
-            for(int i = end.first ; i <= end.second ; i++){
-                pre.at<Vec3b>(img.rows - 1 , i) = GREEN;
-            }
-        }
-        imshow("img" , pre);
-        waitKey(10);
-         */
-        /*
-       if(side == LEFT){
-           for(int i = end.first ; i <= end.second ; i++){
-               for(int j = 0 ; j < this->pos[i - end.first]; j ++){
-                   dis[i][j].y = dis[i][j + 1].y - 1;
-                   dis[i][j].x = dis[i][j + 1].x;
-               }
-           }
-       }
-       else if(side == RIGHT){
-           for(int i = end.first ; i <= end.second ; i++){
-               for(int j = grayimg.cols - 1 ; j > this->pos[i - end.first]; j --){
-                   dis[i][j].y = dis[i][j - 1].y + 1;
-                   dis[i][j].x = dis[i][j - 1].x;
-               }
-           }
-       }
-       else if(side == TOP){
-
-           for(int i = end.first ; i <= end.second ; i++){
-
-               for(int j = 0 ; j < this->pos[i - end.first]; j ++){
-                   dis[j][i].y = dis[j + 1][i].y ;
-                   dis[j][i].x = dis[j + 1][i].x - 1;
-               }
-           }
-       }
-       else if(side == BOTTOM){
-           for(int i = end.first ; i <= end.second ; i++){
-               for(int j = grayimg.rows - 1 ; j > this->pos[i - end.first]; j --){
-                   dis[j][i].y = dis[j - 1][i].y ;
-                   dis[j][i].x = dis[j - 1][i].x + 1;
-               }
-           }
-       }
-         */
-
     }
     Rect_wrap();
 
@@ -536,17 +439,12 @@ void SeamCarving::Rect_wrap(){
      * y = sqrt(400/a)
      * */
     double a = (double)img.rows / img.cols;
-    //cout<<"check::"<<a<<'\n';
-
     int cols = sqrt(400.0 / a);
 
     int rows = 400 / cols;
-    //cout<<"find::"<<rows<<' '<<cols<<'\n';
-
     int row_num = img.rows / rows;
     int col_num = img.cols / cols;
 
-    //cout<<"ppp::"<<row_num<<' '<<col_num<<'\n';
     vector<vector<Point>>res;
 
     for(int i = 0 ;i < img.rows ; i += row_num){
@@ -570,15 +468,7 @@ void SeamCarving::Rect_wrap(){
         }
         res.emplace_back(pre);
     }
-    /*
-    for(int i = 0 ; i < res.size() ;i ++){
-        for(auto it : res[i]){
-            circle(img, it, 2, Scalar(0, 255, 0), 2);
-        }
-    }
-    imshow("img" , img);
-    waitKey(0);
-    */
+
     this->ordinate = res;
     irrect_wrap();
 

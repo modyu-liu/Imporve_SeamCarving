@@ -23,9 +23,6 @@ private:
     vector<int>pos;
 
 public:
-    clock_t time1 , time2;
-
-    double time = 0;
     SeamCarving(Mat &img , Mat &mask);
     void get_long_boundary();
     bool add_seam();
