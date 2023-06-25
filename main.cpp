@@ -16,6 +16,7 @@ void fillHole(Mat src , Mat &dst){
     Temp(cv::Range(1, m_Size.height + 1), cv::Range(1, m_Size.width + 1)).copyTo(cutImg);
     dst = src | (~cutImg);
 }
+
 Mat clean(Mat src ){
     Mat bw;
     cv::cvtColor(src, src, cv::COLOR_BGR2GRAY);
@@ -41,50 +42,23 @@ Mat clean(Mat src ){
     return erode_out;
 }
 
-#define clamp(x,a,b)    (  ((a)<(b)) \
-? ((x)<(a))?(a):(((x)>(b))?(b):(x))	\
-: ((x)<(b))?(b):(((x)>(a))?(a):(x))	\
-)
+#define clamp(x,a,b) (((a)<(b))? ((x)<(a))?(a):(((x)>(b))?(b):(x)):((x)<(b))?(b):(((x)>(a))?(a):(x)))
 GLuint texGround;
 
+// 纹理基础学习 https://www.bilibili.com/video/BV1UW411A7Vh/?spm_id_from=333.337.search-card.all.click&vd_source=f7a4925df10e6949b85d47acd866d063
 GLuint matToTexture(cv::Mat mat, GLenum minFilter = GL_LINEAR,
                     GLenum magFilter = GL_LINEAR, GLenum wrapFilter = GL_REPEAT) {
-    //cv::flip(mat, mat, 0);
     // Generate a number for our textureID's unique handle
     GLuint textureID;
     glGenTextures(1, &textureID);
-
-    // Bind to our texture handle
     glBindTexture(GL_TEXTURE_2D, textureID);
 
-    // Catch silly-mistake texture interpolation method for magnification
-    if (magFilter == GL_LINEAR_MIPMAP_LINEAR ||
-        magFilter == GL_LINEAR_MIPMAP_NEAREST ||
-        magFilter == GL_NEAREST_MIPMAP_LINEAR ||
-        magFilter == GL_NEAREST_MIPMAP_NEAREST)
-    {
-        //cout << "You can't use MIPMAPs for magnification - setting filter to GL_LINEAR" << endl;
-        magFilter = GL_LINEAR;
-    }
-
-    // Set texture interpolation methods for minification and magnification
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minFilter);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter);
-
-    // Set texture clamping method
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapFilter);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapFilter);
 
-    // Set incoming texture format to:
-    // GL_BGR       for CV_CAP_OPENNI_BGR_IMAGE,
-    // GL_LUMINANCE for CV_CAP_OPENNI_DISPARITY_MAP,
-    // Work out other mappings as required ( there's a list in comments in main() )
     GLenum inputColourFormat = GL_BGR_EXT;
-    if (mat.channels() == 1)
-    {
-        inputColourFormat = GL_LUMINANCE;
-    }
-
     // Create the texture
     glTexImage2D(GL_TEXTURE_2D,     // Type of texture
                  0,                 // Pyramid level (for mip-mapping) - 0 is the top level
@@ -104,8 +78,12 @@ GLuint matToTexture(cv::Mat mat, GLenum minFilter = GL_LINEAR,
 vector<vector<Point>>co1 , co2;
 
 Mat img ;
-
+Mat resultImage;
+bool finish_reshape = 0;
+//纹理映射 https://zhuanlan.zhihu.com/p/369977849
 void display() {
+    //cout<<"inthis"<<'\n';
+    resultImage = Mat(img.rows , img.cols , CV_8UC3);
     glLoadIdentity();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glBindTexture(GL_TEXTURE_2D, texGround);
@@ -118,7 +96,6 @@ void display() {
             int index = row * vertexCol + col;
             PDD d_coord = {co2[row][col].x, co2[row][col].y};
             PDD d_localcoord = {co1[row][col].x, co1[row][col].y};
-            //cout<<"check::"<<d_coord.first<<' '<<d_coord.second<<' '<<d_localcoord.first<<' '<<d_localcoord.second<<'\n';
 
             d_coord.first /= img.rows;
             d_coord.second /= img.cols;
@@ -127,7 +104,6 @@ void display() {
             d_coord.first *= 2;
             d_coord.second *= 2;
             d_coord =  {clamp(d_coord.first, -1, 1), clamp(d_coord.second, -1, 1)};
-            //cout << coord << " ";
 
             d_localcoord.first /= img.rows;
             d_localcoord.second /= img.cols;
@@ -154,17 +130,21 @@ void display() {
 
 
             glBegin(GL_QUADS);
-            glTexCoord2d(local_right_top.second, local_right_top.first); glVertex3d(global_right_top.second,  -1 * global_right_top.first, 0.0f);
-            glTexCoord2d(local_right_bottom.second, local_right_bottom.first); glVertex3d(global_right_bottom.second,  -1 * global_right_bottom.first, 0.0f);
-            glTexCoord2d(local_left_bottom.second, local_left_bottom.first);	glVertex3d(global_left_bottom.second,  -1 * global_left_bottom.first, 0.0f);
-            glTexCoord2d(local_left_top.second, local_left_top.first); glVertex3d(global_left_top.second,  -1 * global_left_top.first, 0.0f);
+            glTexCoord2d(local_right_top.second, local_right_top.first);
+            glVertex3d(global_right_top.second,  -1 * global_right_top.first, 0.0f);
+            glTexCoord2d(local_right_bottom.second, local_right_bottom.first);
+            glVertex3d(global_right_bottom.second,  -1 * global_right_bottom.first, 0.0f);
+            glTexCoord2d(local_left_bottom.second, local_left_bottom.first);
+            glVertex3d(global_left_bottom.second,  -1 * global_left_bottom.first, 0.0f);
+            glTexCoord2d(local_left_top.second, local_left_top.first);
+            glVertex3d(global_left_top.second,  -1 * global_left_top.first, 0.0f);
             glEnd();
 
         }
     }
-
-    //GLFWwindow* window;
     glutSwapBuffers();
+
+
 }
 double shrinkImage(Mat src, Mat &dst) {
     int pixel_numbers = src.rows * src.cols;
@@ -173,10 +153,17 @@ double shrinkImage(Mat src, Mat &dst) {
     return scale;
 }
 
+
 int main(int argc, char* argv[]){
 
 
-    img = imread("./data/10a_input.jpg");
+    cout<<"please chose picture:"<<'\n';
+    int num ;
+    cin>>num;
+
+    string filename1 = "./data/" + to_string(num) + "_input.jpg";
+    string filename2 = "./data/" + to_string(num) + "_result.jpg";
+    img = imread(filename1);
     Mat out_img;
     double scale = shrinkImage(img , out_img);
     img = out_img;
@@ -245,7 +232,6 @@ int main(int argc, char* argv[]){
     prepare();
     clock_t time1 , time2 , t1 , t2;
     Mat input_img = img.clone();
-
     time1 = clock();
     t1 = clock();
 
@@ -287,18 +273,25 @@ int main(int argc, char* argv[]){
     t2 = clock();
     cout<<"total cost time:: "<<(double)(t2 - t1) / CLOCKS_PER_SEC<<" s"<<'\n';
 
-
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
     glutInitWindowPosition(0, 0);
     glutInitWindowSize(img.cols, img.rows);
-    glutCreateWindow("img");
+    glutCreateWindow("result");
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // 防止图片倾斜
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_TEXTURE_2D);
     texGround = matToTexture(img);
+    Mat author = imread(filename2);
+
+    imshow("author" , author);
+
+
     glutDisplayFunc(&display);
     glutMainLoop();
+    waitKey(0);
+
+
 
     return 0 ;
 }
