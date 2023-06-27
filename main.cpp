@@ -52,12 +52,10 @@ GLuint matToTexture(cv::Mat mat, GLenum minFilter = GL_LINEAR,
     GLuint textureID;
     glGenTextures(1, &textureID);
     glBindTexture(GL_TEXTURE_2D, textureID);
-
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minFilter);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapFilter);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapFilter);
-
     GLenum inputColourFormat = GL_BGR_EXT;
     // Create the texture
     glTexImage2D(GL_TEXTURE_2D,     // Type of texture
@@ -69,34 +67,27 @@ GLuint matToTexture(cv::Mat mat, GLenum minFilter = GL_LINEAR,
                  inputColourFormat, // Input image format (i.e. GL_RGB, GL_RGBA, GL_BGR etc.)
                  GL_UNSIGNED_BYTE,  // Image data type
                  mat.ptr());        // The actual image data itself
-
     return textureID;
 }
 
-#define PDD pair<double , double>
-
 vector<vector<Point>>co1 , co2;
-
 Mat img ;
-Mat resultImage;
-bool finish_reshape = 0;
+
 //纹理映射 https://zhuanlan.zhihu.com/p/369977849
+//thanks https://github.com/guyuchao/rectangle-panoramic-image
 void display() {
-    //cout<<"inthis"<<'\n';
-    resultImage = Mat(img.rows , img.cols , CV_8UC3);
     glLoadIdentity();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glBindTexture(GL_TEXTURE_2D, texGround);
-    vector<PDD> d_mesh;
-    vector<PDD> d_final_mesh;
+    vector<pair<double , double>> d_mesh;
+    vector<pair<double , double>> d_final_mesh;
     int vertexRow =  co1.size();
     int vertexCol = co1[0].size();
     for (int row = 0; row < vertexRow; row ++) {
         for (int col = 0; col < vertexCol; col ++) {
             int index = row * vertexCol + col;
-            PDD d_coord = {co2[row][col].x, co2[row][col].y};
-            PDD d_localcoord = {co1[row][col].x, co1[row][col].y};
-
+            pair<double , double> d_coord = {co2[row][col].x, co2[row][col].y};
+            pair<double , double> d_localcoord = {co1[row][col].x, co1[row][col].y};
             d_coord.first /= img.rows;
             d_coord.second /= img.cols;
             d_coord.first -= 0.5;
@@ -104,31 +95,24 @@ void display() {
             d_coord.first *= 2;
             d_coord.second *= 2;
             d_coord =  {clamp(d_coord.first, -1, 1), clamp(d_coord.second, -1, 1)};
-
             d_localcoord.first /= img.rows;
             d_localcoord.second /= img.cols;
             d_localcoord = {clamp(d_localcoord.first, 0, 1), clamp(d_localcoord.second, 0, 1)};
-
             d_final_mesh.push_back(d_coord);
             d_mesh.push_back(d_localcoord);
         }
     }
-
     for (int row = 0; row < vertexRow - 1; row ++) {
         for (int col = 0; col < vertexCol - 1; col ++) {
             int index = row * vertexCol + col;
-            PDD local_left_top = d_mesh[index];
-            PDD local_right_top = d_mesh[index + 1];
-            PDD local_left_bottom = d_mesh[index + vertexCol];
-            PDD local_right_bottom = d_mesh[index + vertexCol + 1];
-
-
-            PDD global_left_top = d_final_mesh[index];
-            PDD global_right_top = d_final_mesh[index + 1];
-            PDD global_left_bottom = d_final_mesh[index + vertexCol];
-            PDD global_right_bottom = d_final_mesh[index + vertexCol + 1];
-
-
+            pair<double , double> local_left_top = d_mesh[index];
+            pair<double , double> local_right_top = d_mesh[index + 1];
+            pair<double , double> local_left_bottom = d_mesh[index + vertexCol];
+            pair<double , double> local_right_bottom = d_mesh[index + vertexCol + 1];
+            pair<double , double> global_left_top = d_final_mesh[index];
+            pair<double , double> global_right_top = d_final_mesh[index + 1];
+            pair<double , double> global_left_bottom = d_final_mesh[index + vertexCol];
+            pair<double , double> global_right_bottom = d_final_mesh[index + vertexCol + 1];
             glBegin(GL_QUADS);
             glTexCoord2d(local_right_top.second, local_right_top.first);
             glVertex3d(global_right_top.second,  -1 * global_right_top.first, 0.0f);
@@ -142,34 +126,28 @@ void display() {
 
         }
     }
-    glutSwapBuffers();
-
+    //glutSwapBuffers();
 
 }
-double shrinkImage(Mat src, Mat &dst) {
-    int pixel_numbers = src.rows * src.cols;
-    double scale = sqrt(pixel_numbers / 1000000.0);
+
+void resizeimg(Mat src, Mat &dst) {
+    int num = src.rows * src.cols;
+    double scale = sqrt(num / 1000000.0);
     resize(src, dst, Size(), 1 / scale, 1 / scale);
-    return scale;
 }
-
 
 int main(int argc, char* argv[]){
-
 
     cout<<"please chose picture:"<<'\n';
     int num ;
     cin>>num;
-
     string filename1 = "./data/" + to_string(num) + "_input.jpg";
     string filename2 = "./data/" + to_string(num) + "_result.jpg";
     img = imread(filename1);
     Mat out_img;
-    double scale = shrinkImage(img , out_img);
+    resizeimg(img , out_img);
     img = out_img;
-
     Mat mask = clean(img);
-
 
     for(int i = 0; i < mask.rows ; i++){
         for(int j = 0 ; j < mask.cols ; j++){
@@ -236,42 +214,20 @@ int main(int argc, char* argv[]){
     t1 = clock();
 
     SeamCarving seam(input_img , mask);
-
     time2 = clock();
-
     cout<<"localwarp cost time:: "<<(double)(time2 - time1) / CLOCKS_PER_SEC<<" s"<<'\n';
-
     co1 = seam.get_ordinate();
-
-    /*
-    //绘制网格图
-    Mat pre = img.clone();
-    for(int i = 0; i < co1.size() - 1 ; i ++){
-        for(int j = 0 ; j < co1[0].size() - 1 ; j++){
-            Point a = co1[i][j];
-            Point b = co1[i][j + 1];
-            Point c = co1[i + 1][j + 1];
-            Point d = co1[i + 1][j];
-            cv::line(pre , Point(a.y , a.x) , Point(b.y , b.x) , Scalar(255 , 0 , 0) , 1);
-            cv::line(pre , Point(b.y , b.x) , Point(c.y , c.x) , Scalar(255 , 0 , 0) , 1);
-            cv::line(pre , Point(c.y , c.x) , Point(d.y , d.x) , Scalar(255 , 0 , 0) , 1);
-            cv::line(pre , Point(d.y , d.x) , Point(a.y , a.x) , Scalar(255 , 0 , 0) , 1);
-
-        }
-    }
-    imshow("img" , pre);
-    waitKey(0);
-    */
     time1 = clock();
     globalwarp globalwarp(img , seam.get_ordinate());
+    //globalwarp.show_seg_line();
     time2 = clock();
-
     cout<<"globalwarp cost time:: "<<double(time2 - time1) / CLOCKS_PER_SEC <<" s"<<'\n';
-
     co2 = globalwarp.get_ordinate();
-
     t2 = clock();
     cout<<"total cost time:: "<<(double)(t2 - t1) / CLOCKS_PER_SEC<<" s"<<'\n';
+    cout<<"check::"<<img.rows<<' '<<img.cols<<'\n';
+
+    Mat author_img = imread(filename2);
 
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
@@ -279,18 +235,27 @@ int main(int argc, char* argv[]){
     glutInitWindowSize(img.cols, img.rows);
     glutCreateWindow("result");
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // 防止图片倾斜
+    glPixelStorei(GL_PACK_SWAP_BYTES, 1);
+
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_TEXTURE_2D);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
     texGround = matToTexture(img);
-    Mat author = imread(filename2);
 
-    imshow("author" , author);
+    display();
+    //glutSwapBuffers();
 
 
-    glutDisplayFunc(&display);
-    glutMainLoop();
-    waitKey(0);
+    Mat result_img(img.rows, img.cols, CV_8UC3);
+    glReadPixels(0, 0, img.cols, img.rows, GL_BGR , GL_UNSIGNED_BYTE, result_img.data);
+    flip(result_img, result_img, 0);
 
+    imwrite("result.jpg" , result_img);
+    cv::resize(result_img , result_img , cv::Size(author_img.cols , author_img.rows));
+    Mat result ;
+    cv::vconcat(author_img , result_img , result);
+
+    imwrite("contrast.jpg" , result);
 
 
     return 0 ;

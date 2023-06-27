@@ -84,11 +84,18 @@ void globalwarp::get_line() {
     int n ;
     double *line = lsd(&n , pixel , img.cols , img.rows);
 
+    //Mat pre = img.clone();
+
     for(int i = 0; i < n ; i++){
         Pointd p1(line[i * 7 + 1] , line[i * 7 + 0]);
         Pointd p2(line[i * 7 + 3] , line[i * 7 + 2]);
         this->line.emplace_back(make_pair(p1 , p2));
+        //cv::line(pre , Point(p1.y , p1.x) , Point(p2.y , p2.x) , Scalar(255 , 0 , 0) , 2);
+
     }
+    //imshow("img" , pre);
+    //waitKey(0);
+
 
 }
 bool globalwarp::inmesh(Pointd& s , int x , int y){
@@ -679,5 +686,25 @@ void globalwarp::start_learn() {
 
 vector<vector<Point>> globalwarp::get_ordinate() {
     return this->ver;
+}
+void globalwarp::show_line() {
+    Mat pre = img.clone();
+    for(auto it : this->line){
+        cv::line(pre , Point(it.first.y , it.first.x) , Point(it.second.y , it.second.x) , Scalar(255 , 0 , 0) , 1);
 
+    }
+    imshow("img" , pre);
+    waitKey(0);
+}
+void globalwarp::show_seg_line() {
+    Mat pre = img.clone();
+    for(int i = 0; i < this->mordinate.size() - 1 ; i++){
+        for(int j = 0; j < this->mordinate[0].size() - 1; j ++){
+            for(auto it : this->seg_line[i][j]){
+                cv::line(pre , Point(it.first.y , it.first.x) , Point(it.second.y , it.second.x) , Scalar(255 , 0 , 0) , 1);
+            }
+        }
+    }
+    imshow("img" , pre);
+    waitKey(0);
 }

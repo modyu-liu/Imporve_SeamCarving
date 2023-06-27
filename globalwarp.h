@@ -76,4 +76,7 @@ public:
     void start_learn();
     bool in_line(Vector2d &p , Vector2d &a , Vector2d &b);
     vector<vector<Point>> get_ordinate();
+    void show_line();
+    void show_seg_line();
+
 };
